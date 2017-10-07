@@ -1,4 +1,4 @@
-use Pokemon;
+use Pokemon
 SELECT name FROM Trainer WHERE hometown = 'Blue City';
 SELECT name FROM Trainer WHERE hometown = 'Blue City' OR hometown = 'Rainbow City';
 SELECT name, hometown FROM Trainer WHERE name like 'a%' OR name LIKE 'e%' OR name LIKE 'i%' OR name LIKE 'u%' OR name LIKE 'o%';
@@ -24,7 +24,7 @@ SELECT P1.name FROM Pokemon P1 WHERE P1.id IN (SELECT E1.after_id FROM Evolution
 SELECT DISTINCT P.name FROM Pokemon P, CatchedPokemon CP WHERE P.id = CP.pid AND P.id <= 30 ORDER BY P.name;
 SELECT T.name, P.type FROM Trainer T, Pokemon P, CatchedPokemon CP WHERE T.id = CP.owner_id AND P.id = CP.pid GROUP BY T.name HAVING COUNT(DISTINCT P.type) = 1;
 SELECT T.name, P.type, COUNT(*) as Count FROM Trainer T, Pokemon P, CatchedPokemon CP WHERE T.id = CP.owner_id AND P.id = CP.pid GROUP BY T.name, P.type;
-SELECT T1.name as Trainer, P1.name as Pokemon, count(*) as Count from Trainer T1, Pokemon P1, CatchedPokemon CP1 where T1.id in (SELECT T2.id FROM Trainer T2, Pokemon P2, CatchedPokemon CP2 WHERE T2.id = CP2.owner_id AND P2.id = CP2.pid GROUP BY T2.name  HAVING COUNT(DISTINCT P2.type) = 1) AND T1.id = CP1.owner_id AND CP1.pid = P1.id GROUP BY T1.name, P1.name;
+SELECT T.name as Trainer, P.name as Pokemon, COUNT(*) as COUNT FROM Trainer T, Pokemon P, CatchedPokemon CP  WHERE T.id = CP.owner_id AND CP.pid = P.id GROUP BY T.name HAVING COUNT(DISTINCT P.name) = 1;
 SELECT T1.name, G.city  FROM Trainer T1, Gym G WHERE T1.id NOT IN (SELECT T2.id FROM Trainer T2, Pokemon P2, CatchedPokemon CP2 WHERE T2.id = CP2.owner_id AND P2.id = CP2.pid GROUP BY T2.name  HAVING COUNT(DISTINCT P2.type) = 1) AND T1.id = G.leader_id;
 SELECT DISTINCT T2.name, (SELECT SUM(CP1.level) FROM CatchedPokemon CP1, Trainer T1, Pokemon P1 WHERE T1.id = T2.id AND CP1.owner_id = T2.id AND P1.id = CP1.pid AND CP1.level >= 50) as level FROM Trainer T2, Gym G  WHERE G.leader_id = T2.id;
 SELECT DISTINCT P1.name FROM Pokemon P1, Trainer T1, CatchedPokemon CP1 WHERE P1.id IN (SELECT P2.id FROM Pokemon P2, Trainer T2, CatchedPokemon CP2 WHERE T2.hometown = 'Blue City' AND T2.id = CP2.owner_id AND CP2.pid = P2.id) AND T1.hometown = 'Sangnok City' AND T1.id = CP1.owner_id  AND CP1.pid = P1.id;
