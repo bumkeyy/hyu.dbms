@@ -1,3 +1,9 @@
+/**
+*    @class DB_2017_ITE2038
+*    @file  project1.sql
+*    @author Kibeom Kwon (kgbum2222@gmail.com)
+*    @since 2017-10-08
+*/
 use Pokemon
 SELECT name FROM Trainer WHERE hometown = 'Blue City';
 SELECT name FROM Trainer WHERE hometown = 'Blue City' OR hometown = 'Rainbow City';
