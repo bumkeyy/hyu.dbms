@@ -6,7 +6,7 @@
 */
 use Pokemon
 SELECT name FROM Trainer WHERE hometown = 'Blue City';
-SELECT name FROM Trainer WHERE hometown = 'Blue City' OR hometown = 'Rainbow City';
+SELECT name FROM Trainer WHERE hometown = 'Brown City' OR hometown = 'Rainbow City';
 SELECT name, hometown FROM Trainer WHERE name like 'a%' OR name LIKE 'e%' OR name LIKE 'i%' OR name LIKE 'u%' OR name LIKE 'o%';
 SELECT name FROM Pokemon WHERE type = 'Water';
 SELECT DISTINCT type FROM Pokemon;
@@ -15,7 +15,7 @@ SELECT name FROM Pokemon WHERE name LIKE '%s';
 SELECT P1.name FROM Pokemon P1 JOIN Pokemon P2 ON P2.name = P1.name AND P2.name LIKE '%e%' WHERE P1.name LIKE '%s';
 SELECT name FROM Pokemon WHERE name LIKE 'a%' OR name LIKE 'e%' OR name LIKE 'i%' OR name LIKE 'o%' OR name LIKE 'u%';
 SELECT type, COUNT(*) as '#type' FROM Pokemon GROUP BY type;
-SELECT nickname FROM CatchedPokemon ORDER BY level DESC LIMIT 3;
+SELECT level, nickname FROM CatchedPokemon ORDER BY level DESC LIMIT 3;
 SELECT AVG(level) FROM CatchedPokemon;
 SELECT MAX(level) - MIN(level) as GAP FROM CatchedPokemon;
 SELECT COUNT(name) FROM Pokemon WHERE name BETWEEN 'b' and 'f';
