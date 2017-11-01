@@ -29,6 +29,106 @@
 #define LICENSE_CONDITIONS_START 70
 #define LICENSE_CONDITIONS_END 625
 
+/******************Disk_based B+tree******************/
+#define leaf_order 32
+#define internal_order	249
+#define BOOL int
+
+// TYPES.
+
+/* Type representing the records
+ * to which a given key refers.
+ * Rocord types are 2 types (in disk-based b+tree)
+ * leaf_record and internal_record.
+ * Leaf_record is containing key and value in Leaf page and
+ * consisted of key (8byte) and value (120byte).
+ * Internal_record is containing key and page pointer in
+ * Internal page and consist of key (8byte) and one more page pointer.
+ */
+typedef struct leaf_record {
+	int64_t key;
+	char value[120];
+} leaf_record;
+
+typedef struct internal_record {
+	int64_t key;
+	void* one_more_page;
+} internal_record;
+
+/* Type representing the pages.
+ * There are 4 types of page. 
+ * Header page is special and containing meta data.
+ * Free page is maintained by free page list.
+ * Leaf page is containing records.
+ * Internal page is indexing internal or leaf page.
+ * All page are 4096 bytes.
+ */
+
+// TYPEDEF
+
+typedef struct header_page header_page;
+typedef struct free_page free_page;
+typedef struct leaf_page leaf_page;
+typedef struct internal_page internal_page;
+
+// STRUCT
+
+struct header_page {
+	free_page* free_page;
+	internal_page* root_page;
+	int64_t number_of_page;
+	void* reserved[509];
+}
+
+struct free_page {
+	free_page* next_page;
+}
+
+struct leaf_page {
+	internal_page* parent_page;
+	BOOL is_leaf;
+	int number_of_keys;
+	void* reserved[13];
+	leaf_page* right_sibling;
+	leaf_record record[31];
+}
+
+struct internal_page {
+	internal_page* parent_page;
+	BOOL is_leaf;
+	int number_of_keys;
+	void* reserved[13];
+	leaf_page* one_more_page;
+	internal_record record[248];
+}
+
+// GLOBALS
+
+extern header_page* hp;
+extern FILE* fp;
+
+// FUNCTION PROTOTYPES.
+
+
+// OPEN AND INIT
+
+int open_db( char * pathname);
+free_page* make_free_page();
+int init_header_page();
+int set_header_page();
+
+// INSERTION
+int insert( int64_t key, char * value);
+
+
+char * find( int64_t key);
+int delete( int64_t key);
+
+
+
+
+/******************Disk_based B+tree******************/
+
 // TYPES.
 
 /* Type representing the record
@@ -44,6 +144,7 @@
 typedef struct record {
     int value;
 } record;
+
 
 /* Type representing a node in the B+ tree.
  * This type is general enough to serve for both
@@ -94,21 +195,21 @@ typedef struct node {
  * This global variable is initialized to the
  * default value.
  */
-int order;
+extern int order;
 
 /* The queue is used to print the tree in
  * level order, starting from the root
  * printing each entire rank on a separate
  * line, finishing with the leaves.
  */
-node * queue;
+extern node * queue;
 
 /* The user can toggle on and off the "verbose"
  * property, which causes the pointer addresses
  * to be printed out in hexadecimal notation
  * next to their corresponding keys.
  */
-bool verbose_output;
+extern bool verbose_output;
 
 
 // FUNCTION PROTOTYPES.

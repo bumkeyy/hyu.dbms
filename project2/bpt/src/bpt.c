@@ -1232,3 +1232,91 @@ node * destroy_tree(node * root) {
     return NULL;
 }
 
+/******************Disk_based B+tree******************/
+
+int open_db(char * pathname) {
+	FILE * fp;
+	if ((fp = fopen(pathname, "r+")) == NULL) {
+		// if file doesn't exist, make file and initialize Header page
+		fp = fopen(pathnmae, "w");
+		if (!init_header_page()) {
+			printf("init_header_page() error!!\n");
+			return -1; 
+		}
+	} else {
+		// if not, read file and set Header page
+		if (!set_header_page()) {
+			printf("set_header_page() error!!\n");
+			return -1;
+		}
+	}
+	return 0;
+}
+/* If make file and initialize Header page,
+ * we have to make free_page.
+ * Returns free_page pointer
+ */
+free_page* make_free_page() {	
+
+	free_page* start_page = (free_page*) malloc(sizeof(free_page));
+	free_page* free_page = (free_page*) malloc(sizeof(free_page));	
+	start_page->next_page = free_page;	
+	
+	// disk_based
+	fseek(fp, 4096, SEEK_SET);
+	fwrite(start_page, 8, 1, fp);
+
+	// make 20 of free pages
+	for (int i = 0; i < 20; i++) {
+		fseek(fp, 4086, SEEK_CUR);	
+		free_page* temp_page = free_page;
+		free_page* free_page = (free_page*) malloc(sizeof(free_page));	
+		temp_page->next_page = free_page;
+		fwrite(temp_page, 8, 1, fp);	
+	}	
+	return start_page;
+}
+
+/* If pathname does not exist, 
+ * make file and initialize Header page
+ */
+int init_header_page() {
+	hp = (header_page*)malloc(sizeof(header_page));
+	// make free page
+	hp->free_page = make_free_page();
+	fseek(fp, 0, SEEK_SET);
+	if (fwrite(hp->free_page, 8, 1, fp) == -1) {
+		return 0;
+	}
+	hp->root_page = NULL;
+	if (fwrite(hp->root_page, 8, 1, fp) == -1) {
+		return 0;
+	}
+	hp->number_of_page = 0;
+	if (fwrite(hp->number_of_page, 8, 1, fp) == -1) {
+		return 0;
+	}
+	return 1;
+}
+
+/* If pathname exists,
+ * read file and initialize Header page
+ */
+int set_header_page() {
+	// 0 ~ 8 bytes
+	fseek(fp, 0, SEEK_SET);
+	if ((fread(hp->free_page, 8, 1, fp) == -1) ||
+			(fread(hp->root_page, 8, 1, fp) == -1) ||
+			(fread(hp->number_of_page, 8, 1, fp) == -1)) {
+		return 0;
+	}
+	return 1;
+}
+
+
+
+
+
+
+
+/******************Disk_based B+tree******************/
