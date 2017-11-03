@@ -4,6 +4,7 @@
 // Uncomment the line below if you are compiling on Windows.
 // #define WINDOWS
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #ifdef WINDOWS
@@ -30,9 +31,11 @@
 #define LICENSE_CONDITIONS_END 625
 
 /******************Disk_based B+tree******************/
-#define leaf_order 32
-#define internal_order	249
-#define BOOL int
+#define LEAF_ORDER 32
+#define INTERNAL_ORDER	249
+#define PAGE_HEADER 128
+#define VALUE	120
+#define PAGE_SIZE	4096
 
 // TYPES.
 
@@ -52,7 +55,7 @@ typedef struct leaf_record {
 
 typedef struct internal_record {
 	int64_t key;
-	void* one_more_page;
+	int64_t page;
 } internal_record;
 
 /* Type representing the pages.
@@ -74,32 +77,32 @@ typedef struct internal_page internal_page;
 // STRUCT
 
 struct header_page {
-	free_page* free_page;
-	internal_page* root_page;
-	int64_t number_of_page;
-	void* reserved[509];
+	int64_t free_page;
+	int64_t root_page;
+	int64_t num_page;
+	int64_t reserved[509];
 }
 
 struct free_page {
-	free_page* next_page;
+	int64_t next_page;
 }
 
 struct leaf_page {
-	internal_page* parent_page;
-	BOOL is_leaf;
-	int number_of_keys;
-	void* reserved[13];
-	leaf_page* right_sibling;
-	leaf_record record[31];
+	int64_t parent_page;
+	int is_leaf;
+	int num_keys;
+	int64_t reserved[13];
+	int64_t right_sibling;
+	leaf_record records[31];
 }
 
 struct internal_page {
-	internal_page* parent_page;
-	BOOL is_leaf;
-	int number_of_keys;
-	void* reserved[13];
-	leaf_page* one_more_page;
-	internal_record record[248];
+	int64_t parent_page;
+	int is_leaf;
+	int num_keys;
+	int64_t reserved[13];
+	int64_t one_more_page;
+	internal_record records[248];
 }
 
 // GLOBALS
@@ -113,16 +116,30 @@ extern FILE* fp;
 // OPEN AND INIT
 
 int open_db( char * pathname);
-free_page* make_free_page();
-int init_header_page();
-int set_header_page();
+int64_t make_free_page();
 
 // INSERTION
 int insert( int64_t key, char * value);
+int64_t find_leaf( int64_t key);
+void insert_into_leaf(leaf_page* leaf, int64_t key, char* value);
+int64_t insert_into_leaf_after_splitting(int64_t leaf_offset, int64_t key, char * value);
+int64_t insert_into_parent(int64_t left_offset); 
+int64_t start_new_tree(int64_t key, char * value);
+int64_t get_left_index(int64_t parent_offset, int64_t left_offset);
+int64_t insert_into_page(int64_t old_page_offset, int64_t left_index, int64_t key, int64_t right);
+int64_t insert_into_page_after_splitting(int64_t old_page_offset, int64_t left_index, int64_t key, int64_t right)
+int64_t insert_into_new_root(int64_t left_offset, int64_t right_offset, int64_t key);
 
-
+// FIND
 char * find( int64_t key);
+
+// DELETION
 int delete( int64_t key);
+int delete_entry(int64_t offset, int64_t key);
+int64_t remove_entry_from_page(int64_t offset, int64_t key);
+int get_neighbor_index(int64_t offset);
+int64_t coalesce_page(int64_t offset, int64_t neighbor_offset, int neighbor_index, int k_prime);
+
 
 
 
