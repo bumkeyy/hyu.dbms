@@ -1050,6 +1050,7 @@ node * coalesce_nodes(node * root, node * n, node * neighbor, int neighbor_index
  * small node's entries without exceeding the
  * maximum
  */
+
 node * redistribute_nodes(node * root, node * n, node * neighbor, int neighbor_index, 
         int k_prime_index, int k_prime) {  
 
@@ -1992,7 +1993,147 @@ int64_t coalesce_page(int64_t offset, int64_t neighbor_offset, int neighbor_inde
  * but its neighbor is too big to append the
  * small page's entries without exceeding the
  * maximum
+ */
+int redistribute_page(int64_t offset, int64_t neighbor_offset, int neighbor_index,
+		int k_prime_index, int k_prime) {
 
+	int i;
+	int64_t key[1];
+	leaf_page * leaf, * n;
+	internal_page * page, * neighbor, parent;
+	
+	/* Case : page has a neighbor to the left.
+	 * Pull hte neighbor's last key and pointer pair over
+	 * from the neighbor's right end to page's left end.
+	 */
+
+	leaf = (leaf_page *)malloc(sizeof(leaf_page));
+	n = (leaf_page *)malloc(sizeof(leaf_page));
+	page = (internal_page *)malloc(sizeof(internal_page));
+	neighbor = (internal_page *)malloc(sizeof(internal_page));
+	parent = (internal_page *)malloc(sizeof(internal_page));
+
+	// Set pages
+	fseek(fp, offset, SEEK_SET);
+	fread(n, PAGE_SIZE, 1, fp);
+	fseek(fp, neighbor_offset, SEEK_SET);
+	fread(leaf, PAGE_SIZE, 1, fp);
+	fseek(fp, offset, SEEK_SET);
+	fread(page, PAGE_SIZE, 1, fp);
+	fseek(fp, neighbor_offset, SEEK_SET);
+	fread(neighbor, PAGE_SIZE, 1, fp);
+	fseek(fp, n->parent_page, SEEK_SET);
+	fread(parent, PAGE_SIZE, 1, fp);
+
+	if (neighbor_index != -2) {
+		for (!n->is_leaf) {
+			for (i = page->num_keys - 1; i > 0; i--) {
+				page->record[i].key = page->record[i - 1].key;
+				page->record[i].value = page->recrod[i - 1].value;
+			}  
+			fseek(fp, page->one_more_page + 128, SEEK_SET);
+			fread(key, 8, 1, fp);
+			page->record[0].key = key[0];
+			page->record[0].value = page->one_more_page;	
+			
+			page->one_more_page = neighbor->record[neighbor->num_keys - 2].value;
+			neighbor->record[neighbor->num_keys - 2].key = NULL;
+			neighbor->record[neighbor->num_keys - 2].value = NULL;
+			fseek(fp, page->one_more_page, SEEK_SET);
+			key[0] = offset;
+			fread(key, 8, 1, fp);
+		} else {
+			for (i = n->num_keys; i > 0; i--) {
+				n->record[i].key = n->record[i - 1].key;
+				strcpy(n->record[i].value, n->record[i - 1].value);
+			}
+			n->record[0].key = leaf->record[leaf->num_keys - 1].key;
+			strcpy(n->record[0].value, leaf->record[leaf->num_keys - 1].value);
+			parent->record[k_prime_index].key = n->record[0].key;
+			// write disk
+			fseek(fp, n->parent_page, SEEK_SET);
+			fwrite(parent, PAGE_SIZE, 1, fp);
+		}
+	}
+
+	/* Case : n is the leftmost child.
+	 * Take a key, pointer pair from the neighbor to the right.
+	 * Move the neighbor's leftmost key_pointer pair
+	 * to n's rightmost position.
+	 */
+
+	else {
+		if (n->is_leaf) {
+			n->record[n->num_keys].key = leaf->record[0].key;
+			strcpy(n->record[n->num_keys].value, leaf->record[0].value);
+			parent->record[k_prime_index].key = leaf->record[1].key;	
+			for (i = 0; i < leaf->num_keys - 1; i++) {
+				leaf->record[i].key = leaf->recprd[i + 1].key;
+				strcpy(leaf->record[i].value, leaf->record[i].value);
+			}
+		}
+		else {
+			fseek(fp, neighbor->one_more_page + 128, SEEK_SET);
+			fread(key, 8, 1, fp);
+			page->record[page->num_key - 1].key = key[0];
+			page->record[page->num_key - 1].value = neighbor->one_more_page;
+			neighbor->one_more_page = neighbor_record[0].value;
+			parent->record[k_prime_index].key = neighbor->keys[0];
+			for (i = 0; i < neighbor->num_keys - 2; i++) {
+				neighbor->record[i].key = neighbor->record[i + 1].key;	
+				neighbor->record[i].value = neighbor->record[i + 1].value;
+			}
+			fseek(fp, page->record[page->num_key - 1].value, SEEK_SET);
+			key[0] = offset;
+			fwrite(key, 8, 1, fp);
+		}	
+	}
+	n->num_keys++;
+	leaf->num_keys--;
+	page->num_keys++;
+	neighbor->num_keys--;
+
+	if (n->is_leaf) {
+		fseek(fp, offset, SEEK_SET);
+		fwrite(n, PAGE_SIZE, 1, fp);
+		fseek(fp, neighbor_offset, SEEK_SET);
+		fwrite(leaf, PAGE_SIZE, 1, fp);
+	}else {
+		fseek(fp, offset, SEEK_SET);
+		fwrite(page, PAGE_SIZE, 1, fp);
+		fseek(fp, neighbor_offset, SEEK_SET);
+		fwrite(neighbor, PAGE_SIZE, 1, fp);
+	}
+	fseek(fp, n->parent_page, SEEK_SET);
+	fwrite(parent, PAGE_SIZE, 1, fp);
+
+	// free
+	free(n);
+	free(leaf);
+	free(page);
+	free(neighbor);
+	free(page);
+	return 0;
+}
+
+int adjust_root() {	
+	internal_page* root;
+
+	root = (internal_page *)malloc(sizeof(internal_page));
+	fseek(fp, hp->root_page, SEEK_SET);
+	fread(root, PAGE_SIZE, 1, fp);
+
+	/* Case : nonempty root.
+	 * Key and pointer have already been deleted,
+	 * so nothing to be done.
+	 */
+	if (root->num_keys > 0)
+		return 0;
+
+	/* Case : empty root.
+	 */
+	return 1;
+}
 
 /* Deletes an entry from the B+ tree.
  * Removes the record and its key and value

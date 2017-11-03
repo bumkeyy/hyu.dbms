@@ -139,8 +139,8 @@ int delete_entry(int64_t offset, int64_t key);
 int64_t remove_entry_from_page(int64_t offset, int64_t key);
 int get_neighbor_index(int64_t offset);
 int64_t coalesce_page(int64_t offset, int64_t neighbor_offset, int neighbor_index, int k_prime);
-
-
+int redistribute_page(int64_t offset, int64_t neighbor_offset, int neighbor_index, int k_prime_index, int k_prime);
+int adjust_root(void);
 
 
 
