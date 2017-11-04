@@ -56,7 +56,7 @@ typedef struct leaf_record {
 
 typedef struct internal_record {
 	int64_t key;
-	int64_t page;
+	int64_t value;
 } internal_record;
 
 /* Type representing the pages.
@@ -68,12 +68,6 @@ typedef struct internal_record {
  * All page are 4096 bytes.
  */
 
-// TYPEDEF
-
-typedef struct header_page header_page;
-typedef struct free_page free_page;
-typedef struct leaf_page leaf_page;
-typedef struct internal_page internal_page;
 
 // STRUCT
 
@@ -94,7 +88,7 @@ struct leaf_page {
 	int num_keys;
 	int64_t reserved[13];
 	int64_t right_sibling;
-	leaf_record records[31];
+	leaf_record record[31];
 };
 
 struct internal_page {
@@ -103,8 +97,15 @@ struct internal_page {
 	int num_keys;
 	int64_t reserved[13];
 	int64_t one_more_page;
-	internal_record records[248];
+	internal_record record[248];
 };
+
+// TYPEDEF
+
+typedef struct header_page header_page;
+typedef struct free_page free_page;
+typedef struct leaf_page leaf_page;
+typedef struct internal_page internal_page;
 
 // GLOBALS
 
@@ -122,9 +123,9 @@ int64_t make_free_page();
 // INSERTION
 int insert( int64_t key, char * value);
 int64_t find_leaf( int64_t key);
-void insert_into_leaf(leaf_page* leaf, int64_t key, char* value);
+void insert_into_leaf(int64_t leaf, int64_t key, char* value);
 int64_t insert_into_leaf_after_splitting(int64_t leaf_offset, int64_t key, char * value);
-int64_t insert_into_parent(int64_t left_offset); 
+int64_t insert_into_parent(int64_t left_offset, int64_t right_offset, int64_t key); 
 int64_t start_new_tree(int64_t key, char * value);
 int64_t get_left_index(int64_t parent_offset, int64_t left_offset);
 int64_t insert_into_page(int64_t old_page_offset, int64_t left_index, int64_t key, int64_t right);
@@ -141,7 +142,7 @@ int64_t remove_entry_from_page(int64_t offset, int64_t key);
 int get_neighbor_index(int64_t offset);
 int64_t coalesce_page(int64_t offset, int64_t neighbor_offset, int neighbor_index, int k_prime);
 int redistribute_page(int64_t offset, int64_t neighbor_offset, int neighbor_index, int k_prime_index, int k_prime);
-int adjust_root(void);
+int adjust_root(int64_t offset);
 
 
 

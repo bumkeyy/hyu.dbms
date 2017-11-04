@@ -19,7 +19,7 @@ int open_db(char * pathname) {
 	hp = (header_page *)malloc(sizeof(header_page));
 
 	if ((fp = fopen(pathname, "r+")) == NULL) {
-		fp = fopen(pathnmae, "w");
+		fp = fopen(pathname, "w");
 		hp->free_page = make_free_page();
 		// write disk
 		fseek(fp, 0, SEEK_SET);
@@ -33,7 +33,8 @@ int open_db(char * pathname) {
  * we have to make free_page.
  * Returns free_page pointer
  */
-void make_free_page() {	
+int64_t make_free_page() {	
+	int i;
 	int64_t * buffer;
 	buffer = (int64_t*)malloc(sizeof(int64_t));
 
@@ -44,7 +45,7 @@ void make_free_page() {
 	fwrite(buffer, 8, 1, fp);	
 
 	// make 20 of free pages
-	for (int i = 0; i < 30; i++) {
+	for (i = 0; i < 30; i++) {
 		*buffer += PAGE_SIZE;
 		fseek(fp, 4088, SEEK_CUR);
 		fwrite(buffer, 8, 1, fp);	
@@ -101,6 +102,7 @@ int64_t insert_into_leaf_after_splitting(int64_t leaf_offset, int64_t key, char 
 	leaf_page * new_leaf;
 	leaf_page * leaf;
 	int64_t * temp_keys;
+	int64_t free_offset[1];
 	char ** temp_values;
 	int insertion_index, split, new_key, i, j;
 	int64_t new_leaf_offset;
@@ -151,13 +153,16 @@ int64_t insert_into_leaf_after_splitting(int64_t leaf_offset, int64_t key, char 
 
 	new_leaf_offset = hp->free_page;
 	leaf->right_sibling = new_leaf_offset;
-	hp->free_page = hp->free_page.next_page;
-
+	fseek(fp, hp->free_page, SEEK_SET);
+	fread(free_offset, 8, 1, fp);
+	hp->free_page = free_offset[0];
+	
+	/*
 	for (i = leaf->num_keys; i < LEAF_ORDER - 1; i++)
-		leaf->record[i].value = NULL;
+		leaf->record[i].value = (char *)NULL;
 	for (i = new_leaf->num_keys; i < LEAF_ORDER - 1; i++)
-		new_leaf->record[i].value = NULL;
-
+		new_leaf->record[i].value = (char *)NULL;
+*/
 	new_leaf->parent_page = leaf->parent_page;
 	new_key = new_leaf->record[0].key;
 
@@ -182,8 +187,12 @@ int64_t insert_into_parent(int64_t left_offset, int64_t right_offset, int64_t ke
 
 	int64_t left_index;
 	int64_t * parent_offset;
+	internal_page * parent;
 
+	parent = (internal_page *)malloc(sizeof(internal_page));
 	parent_offset = (int64_t *)malloc(sizeof(int64_t));
+	fseek(fp, left_offset, SEEK_SET);
+	fread(parent, PAGE_SIZE, 1, fp);
 	fseek(fp, left_offset, SEEK_SET);
 	fread(parent_offset, 8, 1, fp);
 
@@ -203,12 +212,12 @@ int64_t insert_into_parent(int64_t left_offset, int64_t right_offset, int64_t ke
 	 */
 
 	if (parent->num_keys < INTERNAL_ORDER - 1)
-		return insert_into_page(parent_offset, left_index, key, right);
+		return insert_into_page(parent_offset, left_index, key, right_offset);
 
 	/* Harder case : split a node in order
 	 * to preserve the B+ tree properties.
 	 */
-	return insert_into_page_after_splitting(parent_offset, left_index, key, right);	
+	return insert_into_page_after_splitting(parent_offset, left_index, key, right_offset);	
 }
 
 /* Inserts a new key and value to a page
@@ -223,6 +232,7 @@ int64_t insert_into_page_after_splitting(int64_t old_page_offset, int64_t left_i
 	internal_page * new_page, * child, * old_page;
 	int64_t * temp_keys;
 	int64_t * temp_values;
+	int64_t free_offset[1];
 
 	/* First create a temporary set of keys and values
 	 * to hold everything in order, including
@@ -241,12 +251,12 @@ int64_t insert_into_page_after_splitting(int64_t old_page_offset, int64_t left_i
 	fseek(fp, old_page_offset, SEEK_SET);
 	fread(old_page, PAGE_SIZE, 1, fp);
 	
-	for (i = 0; j = 0; i < old_page->num_keys; i++, j++) {
+	for (i = 0, j = 0; i < old_page->num_keys; i++, j++) {
 		if (j == left_index) j++;
 		temp_keys[j] = old_page->record[i].key;
 	}
 
-	for (i = 0, j = 0; i < old_page->num_key; i++, j++) {
+	for (i = 0, j = 0; i < old_page->num_keys; i++, j++) {
 		if (j == left_index) j++;
 		temp_values[j] = old_page->record[i].value;	
 	}
@@ -263,12 +273,12 @@ int64_t insert_into_page_after_splitting(int64_t old_page_offset, int64_t left_i
 	old_page->num_keys = 1;		// has one more page
 	for (i = 0; i < split; i++) {
 		old_page->record[i].key = temp_keys[i];
-		old_page->record[i].values = temp_values[i];
+		old_page->record[i].value = temp_values[i];
 		old_page->num_keys++;
 	}
-	k_prime = temp_key[i];
+	k_prime = temp_keys[i];
 	k_value = temp_values[i];
-	for (++i, j = 0; i < INTERNA_OREDER; i++, j++) {
+	for (++i, j = 0; i < INTERNAL_ORDER; i++, j++) {
 		new_page->record[j].value = temp_values[i];
 		new_page->record[j].key = temp_keys[i];
 		new_page->num_keys++;
@@ -278,7 +288,9 @@ int64_t insert_into_page_after_splitting(int64_t old_page_offset, int64_t left_i
 	new_page->one_more_page = k_value;
 	new_page->num_keys++;
 	new_page_offset = hp->free_page;
-	hp->free_page = hp->free_page.next_page;
+	fseek(fp, hp->free_page, SEEK_SET);
+	fread(free_offset, 8, 1, fp);
+	hp->free_page = free_offset[0];
 
 	for (i = 0; i < new_page->num_keys; i++) {
 		child_offset = new_page->record[i].value;
@@ -322,15 +334,13 @@ int64_t insert_into_page(int64_t parent_offset, int64_t left_index,
 	// set pages
 	fseek(fp, parent_offset, SEEK_SET);
 	fread(parent, PAGE_SIZE, 1, fp);
-	fseek(fp, right, SEEK_SET);
-	fread(leaf, PAGE_SIZE, 1, fp);
 
 	for (i = parent->num_keys - 1; i > left_index; i--) {
-		parent->record[i + 1].value, parent->record[i].value;
-		parent->record[i + 1] = parent->record[i].key; 
+		parent->record[i + 1].value = parent->record[i].value;
+		parent->record[i + 1].key = parent->record[i].key; 
 	}
-	parent->record[left_index].value, right;
-	parent->record[left_index] = key;
+	parent->record[left_index].value =right;
+	parent->record[left_index].key = key;
 	parent->num_keys++;
 	
 	// write disk
@@ -355,7 +365,7 @@ int64_t get_left_index(int64_t parent_offset, int64_t left_offset) {
 	fread(parent, PAGE_SIZE, 1, fp);
 
 	while (left_index < parent->num_keys - 1 &&
-			parent->record[left_index] != left_offset)
+			parent->record[left_index].value != left_offset)
 		left_index++;
 
 	free(parent);
@@ -383,10 +393,10 @@ void insert_into_leaf(int64_t leaf_offset, int64_t key, char * value) {
 
 	for (i = leaf->num_keys; i > insertion_point; i--) {
 		leaf->record[i].key = leaf->record[i - 1].key;
-		leaf->record[i].value = leaef->record[i - 1].value;
+		strcpy(leaf->record[i].value, leaf->record[i - 1].value);
 	}
 	leaf->record[insertion_point].key = key;
-	leaf->record[insertion_point].value = value;
+	strcpy(leaf->record[insertion_point].value, value);
 	leaf->num_keys++;
 	// write disk
 	fseek(fp, leaf_offset, SEEK_SET);
@@ -402,17 +412,20 @@ void insert_into_leaf(int64_t leaf_offset, int64_t key, char * value) {
 int64_t insert_into_new_root(int64_t left_offset, int64_t right_offset, 
 		int64_t key) {
 	int64_t * root_offset;
+	int64_t free_offset[1];
 	internal_page * root = (internal_page *)malloc(sizeof(internal_page));
-	root_offset = (int64_t)malloc(sizeof(int64_t));
+	root_offset = (int64_t *)malloc(sizeof(int64_t));
 	root->record[0].key = key;
 	root->one_more_page = left_offset;
 	root->record[0].value = right_offset;
 	root->num_keys = 2;
-	root->parent = 0;
+	root->parent_page = 0;
 
 	*root_offset = hp->free_page;
-	hp->free_page = hp->free_page->next_page;
-	hp->root_page = *root_offset
+	fseek(fp, hp->free_page, SEEK_SET);
+	fread(free_offset, 8, 1, fp);
+	hp->free_page = free_offset[0];
+	hp->root_page = *root_offset;
 
 	// write disk
 	fseek(fp, 0, SEEK_SET);
@@ -437,6 +450,7 @@ int64_t insert_into_new_root(int64_t left_offset, int64_t right_offset,
 int64_t start_new_tree(int64_t key, char * value) {
 	int64_t root_offset;
 	int64_t leaf_offset;
+	int64_t free_offset[1];
 	internal_page * root;
 	leaf_page * leaf;
 
@@ -445,9 +459,14 @@ int64_t start_new_tree(int64_t key, char * value) {
 
 	// assign free pages to root and leaf 
 	root_offset = hp->free_page;
-	hp->free_page = hp->free_page.next_page;
+	fseek(fp, hp->free_page, SEEK_SET);
+	fread(free_offset, 8, 1, fp);
+	hp->free_page = free_offset;
+
 	leaf_offset = hp->free_page;
-	hp->free_page = hp->free_page.next_page;
+	fseek(fp, hp->free_page, SEEK_SET);
+	fread(free_offset, 8, 1, fp);
+	hp->free_page = free_offset;
 
 	// set root page
 	hp->root_page = root_offset;
@@ -464,10 +483,12 @@ int64_t start_new_tree(int64_t key, char * value) {
 	strcpy(leaf->record[0].value, value);
 
 	// write disk
+	fseek(fp, 0, SEEK_SET);
+	fwrite(hp, PAGE_SIZE, 1, fp);
 	fseek(fp, root_offset, SEEK_SET);
-	fwrite(root, PAGE_SIZE, SEEK_CUR);
+	fwrite(root, PAGE_SIZE, 1, fp);
 	fseek(fp, leaf_offset, SEEK_SET);
-	fwrite(leaf, PAGE_SIZE, SEEK_CUR);
+	fwrite(leaf, PAGE_SIZE, 1, fp);
 
 	free(root);
 	free(leaf);
@@ -484,7 +505,7 @@ int64_t start_new_tree(int64_t key, char * value) {
 int insert(int64_t key, char * value) {
 	
 	int64_t leaf_offset;
-	leaf_page* leaf_page = (leaf_page*)malloc(sizeof(leaf_page));
+	leaf_page* leaf = (leaf_page*)malloc(sizeof(leaf_page));
 
 	/* The current implementation ignores
 	 * duplicates.
@@ -497,7 +518,7 @@ int insert(int64_t key, char * value) {
 	 * Start a new tree.
 	 */
 
-	if (hp->root_page == NULL)
+	if (hp->root_page == 0)
 		return start_new_tree(key, value);
 
 	/* Case : the tree already exists.
@@ -508,12 +529,12 @@ int insert(int64_t key, char * value) {
 
 	// read disk and write leaf_page in memory
 	fseek(fp, leaf_offset, SEEK_SET);
-	fread(leaf_page, PAGE_SIZE, 1, fp);
+	fread(leaf, PAGE_SIZE, 1, fp);
 
 	/* Case : leaf has room for key and value
 	 */
-	if (leaf_page->num_keys < LEAF_ORDER - 1) {
-		free(leaf_page);
+	if (leaf->num_keys < LEAF_ORDER - 1) {
+		free(leaf);
 		insert_into_leaf(leaf_offset, key, value);
 		return 0;
 	}
@@ -521,7 +542,7 @@ int insert(int64_t key, char * value) {
 	/* Case : leaf must be split
 	 */
 
-	free(leaf_page);
+	free(leaf);
 	return insert_into_leaf_after_splitting(leaf_offset, key, value);
 }
 
@@ -549,7 +570,7 @@ int64_t remove_entry_from_page(int64_t offset, int64_t key) {
 
 	int i, num_values;
 	leaf_page * leaf;
-	internal_page * paeg;
+	internal_page * page;
 	
 	// Set leaf page
 	leaf = (leaf_page *)malloc(sizeof(leaf_page));
@@ -655,7 +676,7 @@ int64_t coalesce_page(int64_t offset, int64_t neighbor_offset, int neighbor_inde
 	int i, j, neighbor_insertion_index, n_end;
 	int64_t tmp;
 	internal_page * neighbor, * page;
-	leaf_page* n, leaf;
+	leaf_page* n, * leaf;
 
 	/* Swap neighbor with page if page is on the
 	 * extreme left and neighbor is to its right.
@@ -719,7 +740,7 @@ int64_t coalesce_page(int64_t offset, int64_t neighbor_offset, int neighbor_inde
 		fwrite(neighbor_offset, 8, 1, fp);
 
 
-		for (i = 0; i < neighbor_num_keys; i++) {
+		for (i = 0; i < neighbor->num_keys; i++) {
 			fseek(fp, neighbor->record[i].value, SEEK_SET);
 			fwrite(neighbor_offset, 8, 1, fp);
 		}	
@@ -779,7 +800,7 @@ int redistribute_page(int64_t offset, int64_t neighbor_offset, int neighbor_inde
 	int i;
 	int64_t key[1];
 	leaf_page * leaf, * n;
-	internal_page * page, * neighbor, parent;
+	internal_page * page, * neighbor, * parent;
 	
 	/* Case : page has a neighbor to the left.
 	 * Pull hte neighbor's last key and pointer pair over
@@ -805,10 +826,10 @@ int redistribute_page(int64_t offset, int64_t neighbor_offset, int neighbor_inde
 	fread(parent, PAGE_SIZE, 1, fp);
 
 	if (neighbor_index != -2) {
-		for (!n->is_leaf) {
+		if (!n->is_leaf) {
 			for (i = page->num_keys - 1; i > 0; i--) {
 				page->record[i].key = page->record[i - 1].key;
-				page->record[i].value = page->recrod[i - 1].value;
+				page->record[i].value = page->record[i - 1].value;
 			}  
 			fseek(fp, page->one_more_page + 128, SEEK_SET);
 			fread(key, 8, 1, fp);
@@ -847,22 +868,22 @@ int redistribute_page(int64_t offset, int64_t neighbor_offset, int neighbor_inde
 			strcpy(n->record[n->num_keys].value, leaf->record[0].value);
 			parent->record[k_prime_index].key = leaf->record[1].key;	
 			for (i = 0; i < leaf->num_keys - 1; i++) {
-				leaf->record[i].key = leaf->recprd[i + 1].key;
+				leaf->record[i].key = leaf->record[i + 1].key;
 				strcpy(leaf->record[i].value, leaf->record[i].value);
 			}
 		}
 		else {
 			fseek(fp, neighbor->one_more_page + 128, SEEK_SET);
 			fread(key, 8, 1, fp);
-			page->record[page->num_key - 1].key = key[0];
-			page->record[page->num_key - 1].value = neighbor->one_more_page;
-			neighbor->one_more_page = neighbor_record[0].value;
-			parent->record[k_prime_index].key = neighbor->keys[0];
+			page->record[page->num_keys - 1].key = key[0];
+			page->record[page->num_keys - 1].value = neighbor->one_more_page;
+			neighbor->one_more_page = neighbor->record[0].value;
+			parent->record[k_prime_index].key = neighbor->record[0].key;
 			for (i = 0; i < neighbor->num_keys - 2; i++) {
 				neighbor->record[i].key = neighbor->record[i + 1].key;	
 				neighbor->record[i].value = neighbor->record[i + 1].value;
 			}
-			fseek(fp, page->record[page->num_key - 1].value, SEEK_SET);
+			fseek(fp, page->record[page->num_keys - 1].value, SEEK_SET);
 			key[0] = offset;
 			fwrite(key, 8, 1, fp);
 		}	
@@ -895,11 +916,11 @@ int redistribute_page(int64_t offset, int64_t neighbor_offset, int neighbor_inde
 	return 0;
 }
 
-int adjust_root() {	
+int adjust_root(int64_t offset) {	
 	internal_page * root;
 
 	root = (internal_page *)malloc(sizeof(internal_page));
-	fseek(fp, hp->root_page, SEEK_SET);
+	fseek(fp, offset, SEEK_SET);
 	fread(root, PAGE_SIZE, 1, fp);
 
 	/* Case : nonempty root.
@@ -979,7 +1000,6 @@ int delete_entry(int64_t offset, int64_t key) {
 	fread(parent, PAGE_SIZE, 1, fp);
 
 	neighbor_index = get_neighbor_index(offset);
-	n
 	if (neighbor_index == -2) {
 		k_prime = parent->record[0].key;
 		neighbor_offset = parent->record[0].value;
@@ -1028,7 +1048,7 @@ int delete(int64_t key) {
 
 	key_offset = find_leaf(key);
 	strcpy(key_value, find(key));
-	if (key_offset != 0 || ket_value != NULL) {
+	if (key_offset != 0 || key_value != NULL) {
 		return delete_entry(key_offset, key);
 	}
 	return 0;
