@@ -5,6 +5,7 @@
  *    @author Kibeom Kwon (kgbum2222@gmail.com)
  *    @since 2017-11-04
  */       
+
 #include "bpt.h"
 
 // GLOBALS.
@@ -27,6 +28,7 @@ int open_db(char * pathname) {
 	} else {
 		fread(hp, PAGE_SIZE, 1, fp); 
 	}
+	fsync(fd);
 	return 0;
 }
 /* If make file and initialize Header page,
@@ -50,6 +52,7 @@ int64_t make_free_page() {
 		fseek(fp, 4088, SEEK_CUR);
 		fwrite(buffer, 8, 1, fp);	
 	}	
+	fsync(fd);
 	free(buffer);
 	return PAGE_SIZE;
 }
@@ -174,6 +177,7 @@ int64_t insert_into_leaf_after_splitting(int64_t leaf_offset, int64_t key, char 
 	fseek(fp, new_leaf_offset, SEEK_SET);
 	fwrite(new_leaf, PAGE_SIZE, 1, fp);
 
+	fsync(fd);
 	free(leaf);
 	free(new_leaf);
 
@@ -309,6 +313,7 @@ int64_t insert_into_page_after_splitting(int64_t old_page_offset, int64_t left_i
 	fseek(fp, new_page_offset, SEEK_SET);
 	fwrite(new_page, PAGE_SIZE, 1, fp);
 
+	fsync(fd);
 	// free
 	free(old_page);
 	free(new_page);
@@ -347,6 +352,7 @@ int64_t insert_into_page(int64_t parent_offset, int64_t left_index,
 	fseek(fp, parent_offset, SEEK_SET);
 	fwrite(parent, PAGE_SIZE, 1, fp);
 
+	fsync(fd);
 	free(parent);
 	return 1;
 }
@@ -401,6 +407,7 @@ void insert_into_leaf(int64_t leaf_offset, int64_t key, char * value) {
 	// write disk
 	fseek(fp, leaf_offset, SEEK_SET);
 	fwrite(leaf, PAGE_SIZE, 1, fp);
+	fsync(fd);
 	// free
 	free(leaf);
 }
@@ -436,6 +443,7 @@ int64_t insert_into_new_root(int64_t left_offset, int64_t right_offset,
 	fwrite(root_offset, 8, 1, fp);
 	fseek(fp, root_offset, SEEK_SET);
 	fwrite(root, PAGE_SIZE, 1, fp);
+	fsync(fd);
 
 	// free
 	free(root_offset);
@@ -489,6 +497,7 @@ int64_t start_new_tree(int64_t key, char * value) {
 	fwrite(root, PAGE_SIZE, 1, fp);
 	fseek(fp, leaf_offset, SEEK_SET);
 	fwrite(leaf, PAGE_SIZE, 1, fp);
+	fsync(fd);
 
 	free(root);
 	free(leaf);
@@ -618,6 +627,7 @@ int64_t remove_entry_from_page(int64_t offset, int64_t key) {
 		free(page);
 	}
 
+	fsync(fd);
 	// free
 	free(leaf);
 	return offset;
@@ -779,6 +789,7 @@ int64_t coalesce_page(int64_t offset, int64_t neighbor_offset, int neighbor_inde
 		tmp = leaf->parent_page;
 	}
 
+	fsync(fd);
 	// free
 	free(page);
 	free(neighbor);
@@ -907,6 +918,7 @@ int redistribute_page(int64_t offset, int64_t neighbor_offset, int neighbor_inde
 	fseek(fp, n->parent_page, SEEK_SET);
 	fwrite(parent, PAGE_SIZE, 1, fp);
 
+	fsync(fd);
 	// free
 	free(n);
 	free(leaf);
