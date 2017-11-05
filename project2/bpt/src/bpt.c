@@ -12,6 +12,7 @@
 
 header_page * hp;
 FILE * fp;
+int fd;
 
 /********************************Disk_based B+tree********************************/
 
@@ -28,6 +29,7 @@ int open_db(char * pathname) {
 	} else {
 		fread(hp, PAGE_SIZE, 1, fp); 
 	}
+	fd = fileno(fp);
 	fsync(fd);
 	return 0;
 }
