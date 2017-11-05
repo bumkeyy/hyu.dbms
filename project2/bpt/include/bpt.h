@@ -16,7 +16,6 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <unistd.h>
-#define bool char
 #define false 0
 #define true 1
 

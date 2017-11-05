@@ -90,12 +90,33 @@ int main() {
 		return 0;
 	}
 	// insert
+	/*
 	for (i = 0; i < 3; i++) {
 		if (insert(i, string_set[i])){
 			printf("insert(%d) error!\n", i);
 		}
 		printf("insert(%d, %s)\n", i, string_set[i]);
+	}*/
+	i = 0;
+	if (insert(i, string_set[i])){
+		printf("insert(%d) error!\n", i);
 	}
+	printf("insert(%d, %s)\n", i, string_set[i]);
+	i = 1;
+	if (insert(i, string_set[i])){
+		printf("insert(%d) error!\n", i);
+	}
+	printf("insert(%d, %s)\n", i, string_set[i]);
+
+	i = 2;
+	if (insert(i, string_set[i])){
+		printf("insert(%d) error!\n", i);
+	}
+	printf("insert(%d, %s)\n", i, string_set[i]);
+
+
+	
+
 	// find
 	for (i = 0; i < 3; i++) {
 		if (find(i) == NULL){

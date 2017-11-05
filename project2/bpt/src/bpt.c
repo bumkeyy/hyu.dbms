@@ -18,7 +18,7 @@ int open_db(char * pathname) {
 	// assign header page
 	hp = (header_page *)malloc(sizeof(header_page));
 
-	if (fp = fopen(pathname, "r+") == NULL) {
+	if ((fp = fopen(pathname, "r+")) == NULL) {
 		fp = fopen(pathname, "w");
 		fd = fileno(fp);
 		hp->free_page = make_free_page();
@@ -476,7 +476,6 @@ int insert(int64_t key, char * value) {
 	/* The current implementation ignores
 	 * duplicates.
 	 */
-
 	if (find(key) != NULL)
 		return 0;
 
