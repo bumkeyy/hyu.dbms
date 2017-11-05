@@ -72,3 +72,49 @@ int main( int argc, char ** argv ) {
 
     return EXIT_SUCCESS;
 }*/
+
+
+int main() {
+
+	int i;
+	char string[120];
+	char* file = "text";
+	char* string_set[3] = {
+	"val1",
+	"val2",
+	"va13"
+	};
+	
+	if(open_db(file)) {
+		printf("open_db() error!!\n");
+		return 0;
+	}
+	// insert
+	for (i = 0; i < 3; i++) {
+		if (insert(i, string_set[i])){
+			printf("insert(%d) error!\n", i);
+		}
+		printf("insert(%d, %s)\n", i, string_set[i]);
+	}
+	// find
+	for (i = 0; i < 3; i++) {
+		if (find(i) == NULL){
+			printf("find(%d) fail!\n", i);
+			continue;
+		}
+		strcpy(string, find(i));
+		printf("find(%d) : %s \n", i, string);
+	}
+	// delete
+	for (i = 0; i < 3; i++) {
+		if (!delete(i)){
+			printf("delete(%d) error!\n", i);
+		}
+	}
+	return 0;
+}
+	
+
+
+
+

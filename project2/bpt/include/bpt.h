@@ -16,21 +16,9 @@
 #include <stdlib.h>
 #include <stdbool.h>
 #include <unistd.h>
-#ifdef WINDOWS
 #define bool char
 #define false 0
 #define true 1
-#endif
-
-
-// Constants for printing part or all of the GPL license.
-#define LICENSE_FILE "LICENSE.txt"
-#define LICENSE_WARRANTEE 0
-#define LICENSE_WARRANTEE_START 592
-#define LICENSE_WARRANTEE_END 624
-#define LICENSE_CONDITIONS 1
-#define LICENSE_CONDITIONS_START 70
-#define LICENSE_CONDITIONS_END 625
 
 /******************Disk_based B+tree******************/
 #define LEAF_ORDER 32
@@ -55,14 +43,12 @@ typedef struct leaf_record {
 	int64_t key;
 	char value[120];
 } leaf_record;
-#pragma pack(pop);
 
-#pragma pack(push, 1)
 typedef struct internal_record {
 	int64_t key;
 	int64_t value;
 } internal_record;
-#pragma pack(pop);
+#pragma pack(pop)
 
 /* Type representing the pages.
  * There are 4 types of page. 
@@ -83,15 +69,11 @@ struct header_page {
 	int64_t num_page;
 	int64_t reserved[509];
 };
-#pragma pack(pop);
 
-#pragma pack(push, 1)
 struct free_page {
 	int64_t next_page;
 };
-#pragma pack(pop);
 
-#pragma pack(push, 1)
 struct leaf_page {
 	int64_t parent_page;
 	int is_leaf;
@@ -100,9 +82,7 @@ struct leaf_page {
 	int64_t right_sibling;
 	leaf_record record[31];
 };
-#pragma pack(pop);
 
-#pragma pack(push, 1)
 struct internal_page {
 	int64_t parent_page;
 	int is_leaf;
@@ -111,7 +91,7 @@ struct internal_page {
 	int64_t one_more_page;
 	internal_record record[248];
 };
-#pragma pack(pop);
+#pragma pack(pop)
 
 // TYPEDEF
 
@@ -124,6 +104,7 @@ typedef struct internal_page internal_page;
 
 extern header_page * hp;
 extern FILE* fp;
+extern int fd;
 
 // FUNCTION PROTOTYPES.
 
