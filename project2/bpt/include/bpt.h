@@ -50,15 +50,19 @@
  * Internal_record is containing key and page pointer in
  * Internal page and consist of key (8byte) and one more page pointer.
  */
+#pragma pack(push, 1)
 typedef struct leaf_record {
 	int64_t key;
 	char value[120];
 } leaf_record;
+#pragma pack(pop);
 
+#pragma pack(push, 1)
 typedef struct internal_record {
 	int64_t key;
 	int64_t value;
 } internal_record;
+#pragma pack(pop);
 
 /* Type representing the pages.
  * There are 4 types of page. 
@@ -72,17 +76,22 @@ typedef struct internal_record {
 
 // STRUCT
 
+#pragma pack(push, 1)
 struct header_page {
 	int64_t free_page;
 	int64_t root_page;
 	int64_t num_page;
 	int64_t reserved[509];
 };
+#pragma pack(pop);
 
+#pragma pack(push, 1)
 struct free_page {
 	int64_t next_page;
 };
+#pragma pack(pop);
 
+#pragma pack(push, 1)
 struct leaf_page {
 	int64_t parent_page;
 	int is_leaf;
@@ -91,7 +100,9 @@ struct leaf_page {
 	int64_t right_sibling;
 	leaf_record record[31];
 };
+#pragma pack(pop);
 
+#pragma pack(push, 1)
 struct internal_page {
 	int64_t parent_page;
 	int is_leaf;
@@ -100,6 +111,7 @@ struct internal_page {
 	int64_t one_more_page;
 	internal_record record[248];
 };
+#pragma pack(pop);
 
 // TYPEDEF
 
