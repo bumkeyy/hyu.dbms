@@ -207,14 +207,16 @@ char * find(int64_t key) {
 	int i;
 	Buf * b = find_leaf(key);
 	leaf_page * leaf = (leaf_page *) b->page;
-	if (leaf == NULL) return NULL;
+	if (b->page_offset == 0) return NULL;
 	for (i = 0; i < leaf->num_keys; i++) {
 		if (leaf->records[i].key == key) break;
 	}
 	if (i == leaf->num_keys)
 		return NULL;
-	else
+	else {
 		return (char *) leaf->records[i].value;
+	}
+
 }
 
 // INSERT <KEY> <VALUE>
@@ -514,4 +516,411 @@ int insert(int64_t key, char * value) {
 	return insert_into_leaf_after_splitting(b, key, value);
 }
 
+// DELETE <KEY>
+
+/* Utility function for deletion. Retrieves
+ * the index of a page's nearest neighbor (silbing)
+ * to the left if one exists. If no (the page is
+ * the leftmost child), returns -1 to signify
+ * this special case.
+ */
+int get_neighbor_index(Buf * b) {
+	int i;
+	internal_page * c, * parent;
+	Buf * pb;
+	c = (internal_page *)b->page;
+	pb = get_buf(c->parent_page);
+	parent = (internal_page *)pb->page;
+
+	if (parent->one_more_page == b->page_offset)
+		return -2;
+
+	for (i = 0; i <= parent->num_keys; i++)
+		if (parent->records[i].page_offset == b->page_offset)
+			return i - 1;
+}
+
+Buf * remove_entry_from_page(Buf * b, int64_t key) {
+
+	int i, num_pointers;
+	internal_page * c;
+	leaf_page * leaf;
+	c = (internal_page *)b->page;
+
+	if (c->is_leaf) {
+		// If page is leaf page.
+		leaf = (leaf_page *)b->page;
+
+		// Remove the key and shift other keys accordingly.
+		i = 0;
+		while (leaf->records[i].key != key && i < leaf->num_keys) {
+			i++;
+		}
+		for (++i; i < leaf->num_keys; i++) {
+			leaf->records[i - 1].key = leaf->records[i].key;
+			memcpy(leaf->records[i - 1].value, leaf->records[i].value, VALUE_SIZE);
+		}
+		leaf->num_keys--;
+		write_page((Page *)leaf, PAGE_SIZE, b->page_offset);
+	} else {
+		// If page is internal page.
+		i = 0;
+		while (c->records[i].key != key)
+			i++;
+		for (++i; i < c->num_keys; i++) {
+			c->records[i - 1].key = c->records[i].key;
+			c->records[i - 1].page_offset = c->records[i].page_offset;
+		}
+		c->num_keys--;
+		write_page((Page *)c, PAGE_SIZE, b->page_offset);
+	}
+	return b;
+}
+
+int adjust_root(Buf * b) {
+
+	Buf * nb;
+	internal_page * nroot;
+	internal_page * root = (internal_page *)b->page;
+	
+	/* Case : nonempty root.
+	 * Key and value have already been deleted,
+	 * so nothing to be done.
+	 */
+
+	if (root->num_keys > 0)
+		return 0;
+
+	/* Case : empty root.
+	 */
+
+	// If it has a child, promote
+	// the first (only) child
+	// as the new root.
+	
+	if (!root->is_leaf) {
+		hp->root_page = root->one_more_page;
+		nb = get_buf(root->one_more_page);
+		nroot = (internal_page *)nb->page;
+		nroot->parent_page = 0;
+		b->page_offset = 0;
+
+		write_page((Page *)hp, PAGE_SIZE, 0);
+		write_page((Page *)nroot, PAGE_SIZE, nb->page_offset);  
+	}
+
+	return 0;
+}
+
+/* Coalesces a page that has become
+ * too small after deletion
+ * with a neighboring page that
+ * can accept the additional entries
+ * without exceeding the maximum.
+ */
+int coalesce_pages (Buf * b, Buf * nb, int neighbor_index, int64_t k_prime) {
+
+	int i, j, neighbor_insertion_index, n_end;
+	Buf * temp, * child, * parent_b;
+	internal_page * ci, *ni, * cp;
+	leaf_page * cl, *nl;
+
+	/* Swap neighbor with page if page is on the
+	 * extreme left and neighbor is to its right.
+	 */
+
+	if (neighbor_index == -2) {
+		temp = b;
+		b = nb;
+		nb = temp;
+	}
+	
+	/* Starting point in the neighbor for copyunh
+	 * keys and values from b.
+	 * Recall that b and neighbor have swapped places
+	 * in the special case of b being leftmost child.
+	 */
+
+	ni = (internal_page *) nb->page;
+	parent_b = get_buf(ni->parent_page);
+	
+	neighbor_insertion_index = ni->num_keys;
+
+	/* Case : nonleaf page.
+	 * Append k_prime and the following page offset.
+	 * Append all page offset and keys from the neighbor.
+	 */
+
+	if (!ci->is_leaf) {
+		ci = (internal_page *)b->page;
+		ni->records[neighbor_insertion_index].key = k_prime;
+		ni->records[neighbor_insertion_index].page_offset = ci->one_more_page;
+
+		n_end = ci->num_keys;
+
+		for (i = neighbor_insertion_index + 1, j = 0; j < n_end; i++, j++) {
+			ni->records[i].key = ci->records[j].key;
+			ni->records[i].page_offset = ci->records[j].page_offset;
+			ni->num_keys++;
+			ci->num_keys--;
+		}
+
+		/* All children must now point up to the same parent.
+		 */
+		child = get_buf(ni->one_more_page);
+		cp = (internal_page *)child->page;
+		cp->parent_page = nb->page_offset;
+		write_page((Page *)cp, PAGE_SIZE, child->page_offset);
+		for (i = 0; i < ni->num_keys; i++ ) {
+			child = get_buf(ni->records[i].page_offset);
+			cp = (internal_page *)child->page;
+			cp->parent_page = nb->page_offset;
+			write_page((Page *)cp, PAGE_SIZE, child->page_offset);
+		}
+
+		ci->parent_page = 0;
+		hp->num_pages--;
+		write_page((Page *)hp, PAGE_SIZE, 0);
+		write_page((Page *)ci, PAGE_SIZE, b->page_offset);
+		write_page((Page *)ni, PAGE_SIZE, nb->page_offset);
+		b->page_offset = 0;
+	}
+
+	/* In a leaf, append the keys and value of 
+	 * b to nb.
+	 */
+	
+	else {
+		cl = (leaf_page *)b->page;
+		nl = (leaf_page *)nb->page;
+		for (i = neighbor_insertion_index, j = 0; j < cl->num_keys; i++, j++) {
+			nl->records[i].key = cl->records[j].key;
+			memcpy(nl->records[i].value, cl->records[j].value, VALUE_SIZE);
+			nl->num_keys++;
+		}
+		nl->right_sibling = cl->right_sibling;
+
+		cl->parent_page = 0;
+		hp->num_pages--;
+		write_page((Page *)hp, PAGE_SIZE, 0);
+		write_page((Page *)cl, PAGE_SIZE, b->page_offset);
+		write_page((Page *)nl, PAGE_SIZE, nb->page_offset);
+		b->page_offset = 0;
+	}
+
+	return delete_entry(parent_b, k_prime);
+}
+
+/* Redistributes entries between two pages when
+ * one has become too small after deletion
+ * but its neighbor is too big to append the
+ * small page's entries without exceeding the
+ * maximum.
+ */
+
+int redistribute_pages(Buf * b, Buf * nb, int neighbor_index, 
+		int k_prime_index, int k_prime) {
+	int i;
+	internal_page * ci, * ni, * parent;
+	leaf_page * cl, * nl;
+	Buf * tmp, * pb;
+
+	/* Case : b has a neighbor to the left.
+	 * Pull the neighbor's last key-pointer pair over
+	 * from the neighbor's right end to b's left end.
+	 */
+
+	ci = (internal_page *)b->page;
+	pb = get_buf(ci->parent_page);
+	parent = (internal_page *)pb->page;
+
+	if (neighbor_index != -2) {
+		if (ci->is_leaf) {
+			// If page is leaf
+			cl = (leaf_page *)b->page;
+			nl = (leaf_page *)nb->page;
+
+			for (i = cl->num_keys; i > 0; i--) {
+				cl->records[i].key = cl->records[i - 1].key;
+				memcpy(cl->records[i].value, cl->records[i - 1].value, VALUE_SIZE);
+			}
+			cl->records[0].key = nl->records[nl->num_keys - 1].key;
+			memcpy(cl->records[0].value, nl->records[nl->num_keys - 1].value, VALUE_SIZE);
+			parent->records[k_prime_index].key = cl->records[0].key;
+
+			nl->records[nl->num_keys - 1].key = -1;
+			cl->num_keys--;
+			nl->num_keys++;
+
+			write_page((Page *)cl, PAGE_SIZE, b->page_offset);
+			write_page((Page *)nl, PAGE_SIZE, nb->page_offset);
+			write_page((Page *)parent, PAGE_SIZE, pb->page_offset);
+			
+		} else {
+			// If page is internal page
+			ni = (internal_page *)nb->page;
+			for (i = cl->num_keys; i > 0; i--) {
+				ci->records[i].key = ci->records[i - 1].key;
+				ci->records[i].page_offset = ci->records[i - 1].page_offset;
+			}
+			ci->records[0].key = k_prime;
+			ci->records[0].page_offset = ci->one_more_page;
+			ci->one_more_page = ni->records[ni->num_keys - 1].page_offset;
+			parent->records[k_prime_index].key = ni->records[ni->num_keys - 1].key;
+
+			ci->num_keys++;
+			ni->num_keys--;
+
+			write_page((Page *)ci, PAGE_SIZE, b->page_offset);
+			write_page((Page *)ni, PAGE_SIZE, nb->page_offset);
+			write_page((Page *)parent, PAGE_SIZE, pb->page_offset);	
+		}
+	}
+
+	/* Case : b is the leftmost child.
+	 * Take a key-value pair frome the neighbor to the right.
+	 * Move the neighbor's leftmost key-value pair
+	 * to b's rightmost position.
+	 */
+	else {
+		if (ci->is_leaf) {
+		// If page is leaf.
+		cl = (leaf_page *)b->page;
+		nl = (leaf_page *)nb->page;
+
+		cl->records[cl->num_keys].key = nl->records[0].key;
+		memcpy(cl->records[cl->num_keys].value, nl->records[0].value, VALUE_SIZE);
+		parent->records[k_prime_index].key = nl->records[1].key;
+
+		for (i = 0; i < nl->num_keys - 1; i++) {
+			nl->records[i].key = nl->records[i + 1].key;
+			memcpy(nl->records[i].value, nl->records[i + 1].value, VALUE_SIZE);
+		}
+		nl->num_keys--;
+		cl->num_keys++;
+
+		// Write to disk
+		write_page((Page *)cl, PAGE_SIZE, b->page_offset);
+		write_page((Page *)nl, PAGE_SIZE, nb->page_offset);
+		write_page((Page *)parent, PAGE_SIZE, pb->page_offset);
+		} else {
+			ni = (internal_page *)nb->page;
+			ci->records[ci->num_keys].key = k_prime;
+			ci->records[ci->num_keys].page_offset = ni->one_more_page;
+			parent->records[k_prime_index].key = ni->records[0].key;
+			ni->one_more_page = ni->records[0].page_offset;
+
+			for (i = 0; i < ni->num_keys - 1; i++) {
+				ni->records[i].key = ni->records[i + 1].key;
+				ni->records[i].page_offset = ni->records[i + 1].page_offset;
+			}
+			ni->num_keys--;
+			ci->num_keys++;
+
+			// Write to disk
+			write_page((Page *)ci, PAGE_SIZE, b->page_offset);
+			write_page((Page *)ni, PAGE_SIZE, nb->page_offset);
+			write_page((Page *)parent, PAGE_SIZE, pb->page_offset);		
+		}
+	}
+	return 0;
+}
+
+
+
+/* Deletes an entry from the B+ tree.
+ * Removes the record and its key and value
+ * from the leaf page, and then makes all appropriate
+ * changes to preserve the B+ tree properties.
+ */
+int delete_entry(Buf * b, int64_t key) {
+	int min_keys;
+	Buf * nb, * pb;
+	int neighbor_index;
+	int64_t k_prime, k_prime_index, nb_offset;
+	int capacity;
+	internal_page * ipage, * parent, * neighbor;
+
+	// Remove key and value from page.
+	
+	b = remove_entry_from_page(b, key);
+
+	/* Case : deletion from the root.
+	 */
+	if (b->page_offset == hp->root_page)
+		return adjust_root(b);
+
+	/* Case : deletion from a page below the root.
+	 */
+
+	/* Determine minimum allowable size of page,
+	 * to be preserved after deletion.
+	 */
+
+	ipage = (internal_page *) b->page;
+
+	min_keys = ipage->is_leaf ? (LEAF_ORDER - 1) / 2 : (INTERNAL_ORDER - 1) / 2;
+
+	/* Case : page stays at or above minimum.
+	 * (The simple case.)
+	 */
+
+	if (ipage->num_keys >= min_keys)
+		return 0;
+
+	/* Case : page falls below minumum.
+	 * Either coalescence or redistribution
+	 * is needed.
+	 */
+
+	/* Find the appropriate neighbor page with which
+	 * to coalesce.
+	 * Also find the key (k_prime) in the parent
+	 * between the pointer to page b and pointer
+	 * to the neighbor.
+	 */
+	
+	pb = get_buf(ipage->parent_page);
+	parent = (internal_page *)pb->page;
+
+	neighbor_index = get_neighbor_index(b);
+	k_prime_index = neighbor_index == -2 ? 0 : neighbor_index + 1;
+	k_prime = parent->records[k_prime_index].key;
+	if (neighbor_index == -2) {
+		nb_offset = parent->records[0].page_offset;
+	} else if (neighbor_index == -1){
+		nb_offset = parent->one_more_page;
+	} else {
+		nb_offset = parent->records[neighbor_index].page_offset;
+	}
+
+	nb = get_buf(nb_offset);
+	neighbor = (internal_page *) nb->page;
+	capacity = ipage->is_leaf ? LEAF_ORDER - 1 : INTERNAL_ORDER - 1;
+
+	/* Coalescence. */
+
+	if (neighbor->num_keys + ipage->num_keys <= capacity)
+		return coalesce_pages(b, nb, neighbor_index, k_prime);
+
+	/* Redistribution. */
+	else
+		return redistribute_pages(b, nb, neighbor_index, k_prime_index, k_prime);
+}
+
+
+/* Master deletion function.
+ */
+int delete(int64_t key) {
+
+	Buf * b;
+	
+	if (find(key) == NULL) {
+		printf("key : %ld doesn't exist.\n", key);
+		return 0;
+	}
+
+	b = find_leaf(key);
+	return delete_entry(b, key);
+}
 

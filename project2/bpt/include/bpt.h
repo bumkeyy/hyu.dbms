@@ -122,6 +122,8 @@ void init_buf();
 Buf * get_buf(int64_t offset);
 Buf * find_buf(int64_t offset);
 Buf * make_buf(int64_t offset);
+void read_page(Page * page, int64_t size, int64_t offset);
+void write_page(Page * page, int64_t size, int64_t offset);
 
 // FIND
 Buf * find_leaf(int64_t key);
@@ -137,6 +139,14 @@ int get_left_index(Buf * b, Buf * left_b);
 int insert_into_internal(Buf * b, int left_index, int64_t key, Buf * right_b);
 int insert_into_internal_after_splitting(Buf * b, int left_index, int64_t key, Buf * right_b);
 
+// DELETE
+int delete(int64_t key);
+int delete_entry(Buf * b, int64_t key);
+Buf * remove_entry_from_page(Buf * b, int64_t key);
+int adjust_root(Buf * b);
+int get_neighbor_index(Buf * b);
+int coalesce_pages (Buf * b, Buf * nb, int neighbor_index, int64_t k_prime);
+int redistribute_pages(Buf * b, Buf * nb, int neighbor_index, int k_prime_index, int k_prime);
 
 
 

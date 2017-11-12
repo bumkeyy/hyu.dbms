@@ -108,13 +108,13 @@ int main() {
 		strcpy(string, find(i));
 		printf("find(%d) : %s \n", i, string);
 	}
-	/*
 	// delete
-	for (i = 0; i < 3; i++) {
-		if (!delete(i)){
+	for (i = 0; i < 50; i++) {
+		if (delete(i)){
 			printf("delete(%d) error!\n", i);
 		}
-	}*/
+		printf("delete(%d) \n", i);
+	}
 	return 0;
 }
 	
