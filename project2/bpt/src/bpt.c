@@ -337,14 +337,14 @@ int insert_into_internal_after_splitting(Buf * b, int left_index,
 	new_page = (internal_page *)new_b->page;
 	old_page->num_keys = 0;
 
-	for (i = 0; i < split - 1; i++) {
+	for (i = 0; i < split; i++) {
 		old_page->records[i].page_offset = temp_pageoffset[i];
 		old_page->records[i].key = temp_keys[i];
 		old_page->num_keys++;
 	}
 
 	new_page->one_more_page = temp_pageoffset[i];
-	k_prime = temp_keys[split - 1];
+	k_prime = temp_keys[i];
 
 	for (++i, j = 0; i < INTERNAL_ORDER; i++, j++) {
 		new_page->records[j].page_offset = temp_pageoffset[i];
@@ -381,6 +381,9 @@ int get_left_index(Buf * b, Buf * left_b) {
 	internal_page * parent;
 	int left_index = 0;
 	parent = (internal_page *) b->page;
+
+	if (parent->one_more_page == left_b->page_offset)
+		return 0;
 
 	while (left_index <= parent->num_keys &&
 			parent->records[left_index].page_offset != left_b->page_offset)
