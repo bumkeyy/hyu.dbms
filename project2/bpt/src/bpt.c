@@ -128,6 +128,7 @@ int open_db(char* pathname) {
 	 
 	init_buf();
 
+	hp = (header_page *)malloc(sizeof(header_page));
 	// If file exists
 	if (access(pathname, 0) == 0) {
 		if ((fd = open(pathname, O_RDWR | O_SYNC, 0644)) == -1) {
@@ -145,7 +146,6 @@ int open_db(char* pathname) {
 			return -1;
 		} else {
 
-			hp = (header_page *)malloc(sizeof(header_page));
 			// Success to make file, initialize header page and write into file.
 			hp->free_page = PAGE_SIZE;
 			hp->root_page = 0;

@@ -78,7 +78,7 @@ int main() {
 
 	int i;
 	char string[120];
-	char* file = "text";
+	char* file = "a.db";
 	char* string_set[3] = {
 	"val1",
 	"val2",
@@ -90,17 +90,17 @@ int main() {
 		return 0;
 	}
 	// insert
-	
+/*	
 	for (i = 0; i < 50; i++) {
 		if (insert(i, string_set[i%3])){
 			printf("insert(%d) error!\n", i);
 		}
 		printf("insert(%d, %s)\n", i, string_set[i%3]);
 	}
-	
+*/	
 
 	// find
-	for (i = 0; i < 50; i++) {
+	for (i = 0; i < 10; i++) {
 		if (find(i) == NULL){
 			printf("find(%d) fail!\n", i);
 			continue;
@@ -108,13 +108,14 @@ int main() {
 		strcpy(string, find(i));
 		printf("find(%d) : %s \n", i, string);
 	}
+	/*
 	// delete
 	for (i = 0; i < 50; i++) {
 		if (delete(i)){
 			printf("delete(%d) error!\n", i);
 		}
 		printf("delete(%d) \n", i);
-	}
+	}*/
 	return 0;
 }
 	
