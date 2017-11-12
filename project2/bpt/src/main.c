@@ -84,41 +84,23 @@ int main() {
 	"val2",
 	"va13"
 	};
-	
+
 	if(open_db(file)) {
 		printf("open_db() error!!\n");
 		return 0;
 	}
 	// insert
-	/*
-	for (i = 0; i < 3; i++) {
-		if (insert(i, string_set[i])){
+	
+	for (i = 0; i < 50; i++) {
+		if (insert(i, string_set[i%3])){
 			printf("insert(%d) error!\n", i);
 		}
-		printf("insert(%d, %s)\n", i, string_set[i]);
-	}*/
-	i = 0;
-	if (insert(i, string_set[i])){
-		printf("insert(%d) error!\n", i);
+		printf("insert(%d, %s)\n", i, string_set[i%3]);
 	}
-	printf("insert(%d, %s)\n", i, string_set[i]);
-	i = 1;
-	if (insert(i, string_set[i])){
-		printf("insert(%d) error!\n", i);
-	}
-	printf("insert(%d, %s)\n", i, string_set[i]);
-
-	i = 2;
-	if (insert(i, string_set[i])){
-		printf("insert(%d) error!\n", i);
-	}
-	printf("insert(%d, %s)\n", i, string_set[i]);
-
-
 	
 
 	// find
-	for (i = 0; i < 3; i++) {
+	for (i = 0; i < 50; i++) {
 		if (find(i) == NULL){
 			printf("find(%d) fail!\n", i);
 			continue;
@@ -126,12 +108,13 @@ int main() {
 		strcpy(string, find(i));
 		printf("find(%d) : %s \n", i, string);
 	}
+	/*
 	// delete
 	for (i = 0; i < 3; i++) {
 		if (!delete(i)){
 			printf("delete(%d) error!\n", i);
 		}
-	}
+	}*/
 	return 0;
 }
 	

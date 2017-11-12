@@ -9,22 +9,22 @@
 #ifndef __BPT_H__
 #define __BPT_H__
 
-// Uncomment the line below if you are compiling on Windows.
-// #define WINDOWS
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <unistd.h>
+#include <fcntl.h>
 #define false 0
 #define true 1
 
-/******************Disk_based B+tree******************/
 #define LEAF_ORDER 32
 #define INTERNAL_ORDER	249
 #define PAGE_HEADER 128
-#define VALUE	120
+#define VALUE_SIZE	120
 #define PAGE_SIZE	4096
+#define BUF_SIZE	10000
+#define FREEPAGE_SIZE 100
 
 // TYPES.
 
@@ -38,6 +38,20 @@
  * Internal page and consist of key (8byte) and one more page pointer.
  */
 #pragma pack(push, 1)
+
+typedef struct Page {
+	char context[PAGE_SIZE];
+} Page;
+
+typedef struct Buf {
+	Page * page;
+	int64_t table_id;
+	int64_t page_offset;
+	int64_t is_dirty;
+	int64_t pin_count;
+	int64_t LRU;
+} Buf;
+
 typedef struct leaf_record {
 	int64_t key;
 	char value[120];
@@ -45,9 +59,8 @@ typedef struct leaf_record {
 
 typedef struct internal_record {
 	int64_t key;
-	int64_t value;
+	int64_t page_offset;
 } internal_record;
-#pragma pack(pop)
 
 /* Type representing the pages.
  * There are 4 types of page. 
@@ -62,83 +75,70 @@ typedef struct internal_record {
 // STRUCT
 
 #pragma pack(push, 1)
-struct header_page {
+typedef struct header_page {
 	int64_t free_page;
 	int64_t root_page;
-	int64_t num_page;
+	int64_t num_pages;
 	int64_t reserved[509];
-};
+} header_page;
 
-struct free_page {
-	int64_t next_page;
-};
+typedef struct free_page {
+	int64_t  next_page;
+	char unused[4088];
+} free_page;
 
-struct leaf_page {
+typedef struct leaf_page {
 	int64_t parent_page;
 	int is_leaf;
 	int num_keys;
 	int64_t reserved[13];
 	int64_t right_sibling;
-	leaf_record record[31];
-};
+	leaf_record records[31];
+} leaf_page;
 
-struct internal_page {
+typedef struct internal_page {
 	int64_t parent_page;
 	int is_leaf;
 	int num_keys;
 	int64_t reserved[13];
 	int64_t one_more_page;
-	internal_record record[248];
-};
+	internal_record records[248];
+} internal_page;
+
 #pragma pack(pop)
-
-// TYPEDEF
-
-typedef struct header_page header_page;
-typedef struct free_page free_page;
-typedef struct leaf_page leaf_page;
-typedef struct internal_page internal_page;
 
 // GLOBALS
 
 extern header_page * hp;
 extern FILE* fp;
 extern int fd;
+extern Buf * buf;
 
 // FUNCTION PROTOTYPES.
 
-
 // OPEN AND INIT
-
-int open_db( char * pathname);
-int64_t make_free_page();
-
-// INSERTION
-int insert( int64_t key, char * value);
-int64_t find_leaf( int64_t key);
-void insert_into_leaf(int64_t leaf, int64_t key, char* value);
-int64_t insert_into_leaf_after_splitting(int64_t leaf_offset, int64_t key, char * value);
-int64_t insert_into_parent(int64_t left_offset, int64_t right_offset, int64_t key); 
-int64_t start_new_tree(int64_t key, char * value);
-int64_t get_left_index(int64_t parent_offset, int64_t left_offset);
-int64_t insert_into_page(int64_t old_page_offset, int64_t left_index, int64_t key, int64_t right);
-int64_t insert_into_page_after_splitting(int64_t old_page_offset, int64_t left_index, int64_t key, int64_t right);
-int64_t insert_into_new_root(int64_t left_offset, int64_t right_offset, int64_t key);
+int open_db(char* pathname);
+void init_buf();
+Buf * get_buf(int64_t offset);
+Buf * find_buf(int64_t offset);
+Buf * make_buf(int64_t offset);
 
 // FIND
-char * find( int64_t key);
+Buf * find_leaf(int64_t key);
+char * find(int64_t key);
 
-// DELETION
-int delete( int64_t key);
-int delete_entry(int64_t offset, int64_t key);
-int64_t remove_entry_from_page(int64_t offset, int64_t key);
-int get_neighbor_index(int64_t offset);
-int64_t coalesce_page(int64_t offset, int64_t neighbor_offset, int neighbor_index, int k_prime);
-int redistribute_page(int64_t offset, int64_t neighbor_offset, int neighbor_index, int k_prime_index, int k_prime);
-int adjust_root(int64_t offset);
+// INSERT
+int insert(int64_t key, char * value);
+int insert_into_leaf(Buf * b, int64_t key, char * value);
+int insert_into_leaf_after_splitting(Buf * b, int64_t key, char * value);
+int insert_into_parent(Buf * left_b, int64_t key, Buf * right_b);
+int insert_into_new_root(Buf * left_b, int64_t key, Buf * right_b);
+int get_left_index(Buf * b, Buf * left_b);
+int insert_into_internal(Buf * b, int left_index, int64_t key, Buf * right_b);
+int insert_into_internal_after_splitting(Buf * b, int left_index, int64_t key, Buf * right_b);
 
 
 
-/******************Disk_based B+tree******************/
+
 
 #endif /* __BPT_H__*/
