@@ -24,7 +24,6 @@
 #define VALUE_SIZE	120
 #define PAGE_SIZE	4096
 #define BUF_SIZE	10000
-#define FREEPAGE_SIZE 100
 
 // TYPES.
 
@@ -117,6 +116,7 @@ extern Buf * buf;
 // FUNCTION PROTOTYPES.
 
 // OPEN AND INIT
+int cut(int length);
 int open_db(char* pathname);
 void init_buf();
 Buf * get_buf(int64_t offset);

@@ -17,6 +17,13 @@ Buf * buf;
 
 // OPEN AND INIT BUF
 
+int cut (int length) {
+	if (length % 2 == 0)
+		return length / 2;
+	else
+		return (length / 2) + 1;
+}
+
 // Read page from file
 void read_page(Page * page, int64_t size, int64_t offset) {
 	pread(fd, page, size, offset);
@@ -178,11 +185,12 @@ int open_db(char* pathname) {
 /* Find Buf pointer of leaf page which has key.
  */
 Buf * find_leaf(int64_t key) {
-	int i = 0;
+	int i;
 	Buf * b = get_buf(hp->root_page);
 	internal_page * c = (internal_page *) b->page;
 
 	while (!c->is_leaf) {
+		i = 0;
 		while (i < c->num_keys) {
 			if (key >= c->records[i].key)
 				i++;
@@ -227,6 +235,8 @@ char * find(int64_t key) {
  */
 int insert_into_leaf(Buf * b, int64_t key, char * value) {
 
+	printf("insert_into_leaf : %ld \n", key);
+
 	int i, insertion_point;
 	leaf_page * leaf = (leaf_page *) b->page;
 	
@@ -254,6 +264,8 @@ int insert_into_leaf(Buf * b, int64_t key, char * value) {
  * in half.
  */
 int insert_into_leaf_after_splitting(Buf * b, int64_t key, char * value) {
+
+	printf("insert_into_leaf_after_splitting : %ld \n", key);
 	
 	Buf * new_b;
 	int insertion_index, split, new_key, i, j;
@@ -280,8 +292,9 @@ int insert_into_leaf_after_splitting(Buf * b, int64_t key, char * value) {
 	memcpy(temp_values[insertion_index], value, VALUE_SIZE);
 
 	leaf->num_keys = 0;
+	new_leaf->num_keys = 0;
 
-	split = (LEAF_ORDER - 1) / 2 + 1;
+	split = cut(LEAF_ORDER);
 
 	for (i = 0; i < split; i++) {
 		memcpy(leaf->records[i].value, temp_values[i], VALUE_SIZE);
@@ -313,6 +326,8 @@ int insert_into_leaf_after_splitting(Buf * b, int64_t key, char * value) {
  */
 int insert_into_internal_after_splitting(Buf * b, int left_index, 
 		int64_t key, Buf * right_b) {
+	
+	printf("insert_into_internal_after_splitting : %ld \n", key);
 
 	int i, j, split, k_prime;
 	Buf * new_b, * child_b;
@@ -323,7 +338,7 @@ int insert_into_internal_after_splitting(Buf * b, int left_index,
 
 	old_page = (internal_page *)b->page;
 
-	for (i = 0, j = 0; i < old_page->num_keys + 1; i++, j++) {
+	for (i = 0, j = 0; i < old_page->num_keys; i++, j++) {
 		if (j == left_index) j++;
 		temp_pageoffset[j] = old_page->records[i].page_offset;
 		temp_keys[j] = old_page->records[i].key;
@@ -331,10 +346,11 @@ int insert_into_internal_after_splitting(Buf * b, int left_index,
 	temp_pageoffset[left_index] = right_b->page_offset;
 	temp_keys[left_index] = key;
 
-	split = (INTERNAL_ORDER - 1) / 2;
+	split = cut (INTERNAL_ORDER);
 
 	new_b = get_buf(hp->free_page);
 	new_page = (internal_page *)new_b->page;
+	new_page->num_keys = 0;
 	old_page->num_keys = 0;
 
 	for (i = 0; i < split; i++) {
@@ -396,6 +412,8 @@ int get_left_index(Buf * b, Buf * left_b) {
  * without violating the B+ tree properties.
  */
 int insert_into_internal(Buf * b, int left_index, int64_t key, Buf * right_b) {
+
+	printf("insert_into_internal : %ld \n", key);
 	int i;
 	internal_page * parent;
 	parent = (internal_page *)b->page;
@@ -426,7 +444,7 @@ int insert_into_parent(Buf * left_b, int64_t key, Buf * right_b) {
 	b = get_buf(left->parent_page);
 
 	/* Case : new root. */
-	if (b == NULL)
+	if (left_b->page_offset == hp->root_page)
 		return insert_into_new_root(left_b, key, right_b);
 
 	/* Case : leaf or internal page.
@@ -456,6 +474,8 @@ int insert_into_parent(Buf * left_b, int64_t key, Buf * right_b) {
  * the new root page.
  */
 int insert_into_new_root(Buf * left_b, int64_t key, Buf * right_b) {
+
+	printf("insert_into_new_root : %ld \n", key);
 	Buf * root_b;
 	internal_page * root, * left, * right;
 
@@ -654,10 +674,11 @@ int coalesce_pages (Buf * b, Buf * nb, int neighbor_index, int64_t k_prime) {
 	 * Append all page offset and keys from the neighbor.
 	 */
 
-	if (!ci->is_leaf) {
+	if (!ni->is_leaf) {
 		ci = (internal_page *)b->page;
 		ni->records[neighbor_insertion_index].key = k_prime;
 		ni->records[neighbor_insertion_index].page_offset = ci->one_more_page;
+		ni->num_keys++;
 
 		n_end = ci->num_keys;
 
@@ -862,7 +883,7 @@ int delete_entry(Buf * b, int64_t key) {
 
 	ipage = (internal_page *) b->page;
 
-	min_keys = ipage->is_leaf ? (LEAF_ORDER - 1) / 2 : (INTERNAL_ORDER - 1) / 2;
+	min_keys = ipage->is_leaf ? cut(LEAF_ORDER - 1) : cut(INTERNAL_ORDER - 1) - 1;
 
 	/* Case : page stays at or above minimum.
 	 * (The simple case.)

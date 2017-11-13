@@ -100,7 +100,7 @@ int main() {
 
 
 	// find
-	for (i = 0; i < 10; i++) {
+	for (i = 0; i < 50; i++) {
 		if (find(i) == NULL){
 			printf("find(%d) fail!\n", i);
 			continue;
@@ -113,6 +113,7 @@ int main() {
 	for (i = 0; i < 50; i++) {
 		if (delete(i)){
 			printf("delete(%d) error!\n", i);
+			continue;
 		}
 		printf("delete(%d) \n", i);
 	}
