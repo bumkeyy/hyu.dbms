@@ -18,10 +18,10 @@
 #define false 0
 #define true 1
 
-//#define LEAF_ORDER 32
-//#define INTERNAL_ORDER	249
-#define LEAF_ORDER 4
-#define INTERNAL_ORDER 4
+#define LEAF_ORDER 32
+#define INTERNAL_ORDER	249
+//#define LEAF_ORDER 4
+//#define INTERNAL_ORDER 4
 #define PAGE_HEADER 128
 #define HEADERPAGE_OFFSET 0
 #define VALUE_SIZE	120
