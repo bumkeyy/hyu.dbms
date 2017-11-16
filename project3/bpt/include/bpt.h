@@ -18,12 +18,16 @@
 #define false 0
 #define true 1
 
-#define LEAF_ORDER 32
-#define INTERNAL_ORDER	249
+//#define LEAF_ORDER 32
+//#define INTERNAL_ORDER	249
+#define LEAF_ORDER 4
+#define INTERNAL_ORDER 4
 #define PAGE_HEADER 128
+#define HEADERPAGE_OFFSET 0
 #define VALUE_SIZE	120
 #define PAGE_SIZE	4096
 #define BUF_SIZE	10000
+#define TABLE_SIZE	11
 
 // TYPES.
 
@@ -42,14 +46,31 @@ typedef struct Page {
 	char context[PAGE_SIZE];
 } Page;
 
+typedef struct LRU LRU;
+
 typedef struct Buf {
 	Page * page;
-	int64_t table_id;
+	int64_t table_id;	// table_id is (fd - 2).
 	int64_t page_offset;
-	int64_t is_dirty;
-	int64_t pin_count;
-	int64_t LRU;
+	bool is_dirty;		// When victim page is removed in LRU, if it is true, call write_page function.
+	int pin_count;		// If it is in using, increment pin_count.
+	bool in_LRU;		// If its page is in LRU, return true.
+	LRU * lru;			// Each Buf structure has its LRU structure.
 } Buf;
+
+struct LRU {
+	Buf * buf;
+	struct LRU * prev;
+	struct LRU * next;
+};
+
+// It LRU_list means buffer list.
+// When reading the page, LRU structure of Page is located head of LRU_list.
+typedef struct LRU_list {
+	LRU * head;
+	LRU * tail;
+	int num_lru;
+} LRU_LIST;
 
 typedef struct leaf_record {
 	int64_t key;
@@ -111,42 +132,53 @@ typedef struct internal_page {
 extern header_page * hp;
 extern FILE* fp;
 extern int fd;
-extern Buf * buf;
+extern Buf ** buf;
+extern int num_buf;
 
 // FUNCTION PROTOTYPES.
 
 // OPEN AND INIT
 int cut(int length);
-int open_db(char* pathname);
-void init_buf();
-Buf * get_buf(int64_t offset);
-Buf * find_buf(int64_t offset);
-Buf * make_buf(int64_t offset);
-void read_page(Page * page, int64_t size, int64_t offset);
-void write_page(Page * page, int64_t size, int64_t offset);
+int open_table(char* pathname);
+void init_buf(int table_id);
+Buf * get_buf(int table_id, int64_t offset);
+Buf * find_buf(int table_id, int64_t offset);
+Buf * make_buf(int table_id, int64_t offset);
+void read_page(int table_id, Page * page, int64_t size, int64_t offset);
+void write_page(int table_id, Page * page, int64_t size, int64_t offset);
+
+// BUFFER POOL
+int init_db(int num_buf);
+int update_LRU(Buf * b);
+void make_victim(void);
+Buf * init_headerpage (int table_id);
+void mark_dirty(Buf * b);
+void release_pincount(Buf * b);
+int close_table(int table_id);
+int shutdown_db(void);
 
 // FIND
-Buf * find_leaf(int64_t key);
-char * find(int64_t key);
+Buf * find_leaf(int table_id, int64_t key);
+char * find(int table_id, int64_t key);
 
 // INSERT
-int insert(int64_t key, char * value);
+int insert(int table_id, int64_t key, char * value);
 int insert_into_leaf(Buf * b, int64_t key, char * value);
-int insert_into_leaf_after_splitting(Buf * b, int64_t key, char * value);
-int insert_into_parent(Buf * left_b, int64_t key, Buf * right_b);
-int insert_into_new_root(Buf * left_b, int64_t key, Buf * right_b);
+int insert_into_leaf_after_splitting(int table_id, Buf * b, int64_t key, char * value);
+int insert_into_parent(int table_id, Buf * left_b, int64_t key, Buf * right_b);
+int insert_into_new_root(int table_id, Buf * left_b, int64_t key, Buf * right_b);
 int get_left_index(Buf * b, Buf * left_b);
 int insert_into_internal(Buf * b, int left_index, int64_t key, Buf * right_b);
-int insert_into_internal_after_splitting(Buf * b, int left_index, int64_t key, Buf * right_b);
+int insert_into_internal_after_splitting(int table_id, Buf * b, int left_index, int64_t key, Buf * right_b);
 
 // DELETE
-int delete(int64_t key);
-int delete_entry(Buf * b, int64_t key);
+int delete(int table_id, int64_t key);
+int delete_entry(int table_id, Buf * b, int64_t key);
 Buf * remove_entry_from_page(Buf * b, int64_t key);
-int adjust_root(Buf * b);
-int get_neighbor_index(Buf * b);
-int coalesce_pages (Buf * b, Buf * nb, int neighbor_index, int64_t k_prime);
-int redistribute_pages(Buf * b, Buf * nb, int neighbor_index, int k_prime_index, int k_prime);
+int adjust_root(int table_id, Buf * b);
+int get_neighbor_index(int table_id, Buf * b);
+int coalesce_pages (int table_id, Buf * b, Buf * nb, int neighbor_index, int64_t k_prime);
+int redistribute_pages(int table_id, Buf * b, Buf * nb, int neighbor_index, int k_prime_index, int k_prime);
 
 
 
