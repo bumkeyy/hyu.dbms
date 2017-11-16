@@ -116,7 +116,18 @@ int main() {
 			continue;
 		}
 		printf("delete(%d) \n", i);
+	}	
+	
+	// find
+	for (i = 0; i < 50; i++) {
+		if (find(i) == NULL){
+			printf("find(%d) fail!\n", i);
+			continue;
+		}
+		strcpy(string, find(i));
+		printf("find(%d) : %s \n", i, string);
 	}
+
 	return 0;
 }
 	

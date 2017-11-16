@@ -1,9 +1,9 @@
 /**
  *    @class Database System
  *    @file  bpt.c
- *    @brief Diks-based B+ tree
+ *    @brief Disk-based B+ tree with buffer 
  *    @author Kibeom Kwon (kgbum2222@gmail.com)
- *    @since 2017-11-04
+ *    @since 2017-11-14
  */       
 
 #include "bpt.h"
@@ -11,7 +11,6 @@
 // GLOBALS.
 
 header_page * hp;
-FILE * fp;
 int fd;
 Buf * buf;
 
@@ -154,6 +153,7 @@ int open_db(char* pathname) {
 		} else {
 
 			// Success to make file, initialize header page and write into file.
+			printf("fd : %d \n", fd);
 			hp->free_page = PAGE_SIZE;
 			hp->root_page = 0;
 			hp->num_pages = 1;	// header page
