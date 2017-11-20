@@ -95,19 +95,26 @@ int init_db(int num) {
 void make_victim() {
 	Buf * vb;
 	LRU * d_lru;
-	d_lru = LRU_list->tail->prev;
 
-	// Remove in LRU_list.
-	d_lru->prev->next = LRU_list->tail;
-	LRU_list->tail->prev = d_lru->prev; 
+	while (1) {
+		d_lru = LRU_list->tail->prev;
 
-	vb = d_lru->buf;
+		// Remove in LRU_list.
+		d_lru->prev->next = LRU_list->tail;
+		LRU_list->tail->prev = d_lru->prev; 
 
-	if (vb->pin_count != 0) {
-		printf("make_victim() error!!!!!\n");
-		return;
+		vb = d_lru->buf;
+
+		if (vb->pin_count != 0) {
+			d_lru->next = LRU_list->head->next;
+			LRU_list->head->next->prev = d_lru;
+			d_lru->prev = LRU_list->head;
+			LRU_list->head->next = d_lru;
+			continue;
+		}
+		break;
 	}
-	
+		
 	if (vb->is_dirty) {
 		write_page(vb->table_id, vb->page, PAGE_SIZE, vb->page_offset);
 	}

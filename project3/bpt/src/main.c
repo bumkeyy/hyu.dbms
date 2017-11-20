@@ -74,13 +74,15 @@ int main( int argc, char ** argv ) {
 }*/
 
 
+#define NUM_COMMAND	1000
+
 int main() {
 
 	int i;
-	int num_buf = 12;
+	int num_buf = 5;
 	int table_id;
 	char string[120];
-	char* file = "text.db";
+	char* file = "text";
 	char* string_set[3] = {
 	"val1",
 	"val2",
@@ -96,19 +98,19 @@ int main() {
 		return 0;
 	}
 
-	/*
+
 	// insert
 	
-	for (i = 0; i < 200; i++) {
+	for (i = 0; i < NUM_COMMAND; i++) {
 		if (insert(table_id, i, string_set[i%3])){
 			printf("insert(%d) error!\n", i);
 		}
 		printf("insert(%d, %s)\n", i, string_set[i%3]);
 	}
-*/
+
 
 	// find
-	for (i = 0; i < 200; i++) {
+	for (i = 0; i < NUM_COMMAND; i++) {
 		if (find(table_id ,i) == NULL){
 			printf("find(%d) fail!\n", i);
 			continue;
@@ -118,7 +120,7 @@ int main() {
 	}
 	
 	// delete
-	for (i = 0; i < 200; i++) {
+	for (i = 0; i < NUM_COMMAND; i++) {
 		if (delete(table_id, i)){
 			printf("delete(%d) error!\n", i);
 			continue;
@@ -127,7 +129,7 @@ int main() {
 	}	
 	
 	// find
-	for (i = 0; i < 200; i++) {
+	for (i = 0; i < NUM_COMMAND; i++) {
 		if (find(table_id, i) == NULL){
 			printf("find(%d) fail!\n", i);
 			continue;
