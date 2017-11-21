@@ -74,7 +74,7 @@ int main( int argc, char ** argv ) {
 }*/
 
 
-#define NUM_COMMAND	1000
+#define NUM_COMMAND	100000
 
 int main() {
 

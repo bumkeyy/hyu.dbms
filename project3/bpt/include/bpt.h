@@ -26,7 +26,7 @@
 #define HEADERPAGE_OFFSET 0
 #define VALUE_SIZE	120
 #define PAGE_SIZE	4096
-#define BUF_SIZE	10000
+#define BUF_SIZE	100000
 #define TABLE_SIZE	11
 
 // TYPES.
@@ -82,6 +82,7 @@ typedef struct internal_record {
 	int64_t page_offset;
 } internal_record;
 
+#pragma pack(pop)
 /* Type representing the pages.
  * There are 4 types of page. 
  * Header page is special and containing meta data.
