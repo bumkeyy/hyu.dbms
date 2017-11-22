@@ -106,6 +106,7 @@ void make_victim() {
 		vb = d_lru->buf;
 
 		if (vb->pin_count != 0) {
+			// If victim page is using, current page moves to head of LRU_list
 			d_lru->next = LRU_list->head->next;
 			LRU_list->head->next->prev = d_lru;
 			d_lru->prev = LRU_list->head;

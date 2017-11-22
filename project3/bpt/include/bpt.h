@@ -130,8 +130,6 @@ typedef struct internal_page {
 
 // GLOBALS
 
-extern header_page * hp;
-extern FILE* fp;
 extern int fd;
 extern Buf ** buf;
 extern int num_buf;
