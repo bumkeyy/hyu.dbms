@@ -1,9 +1,9 @@
 /**
  *    @class Database System
  *    @file  bpt.c
- *    @brief Disk-based B+ tree with buffer 
+ *    @brief join 
  *    @author Kibeom Kwon (kgbum2222@gmail.com)
- *    @since 2017-11-14
+ *    @since 2017-11-23
  */       
 
 #include "bpt.h"
@@ -59,7 +59,6 @@ void write_page(int table_id, Page * page, int64_t size, int64_t offset) {
  */
 void init_buf(int table_id) {
 	int i, j;
-	buf = (Buf **) malloc(sizeof(Buf *) * TABLE_SIZE);
 	buf[table_id] = (Buf *)malloc(sizeof(Buf)*BUF_SIZE);
 
 	for (i = 0; i < BUF_SIZE; i++) {
@@ -79,6 +78,7 @@ void init_buf(int table_id) {
  */
 int init_db(int num) {
 	num_buf = num;
+	buf = (Buf **) malloc(sizeof(Buf *) * TABLE_SIZE);
 	LRU_list = (LRU_LIST *)malloc(sizeof(LRU_LIST));
 	LRU * dummy_head = (LRU *)malloc(sizeof(LRU));
 	LRU * dummy_tail = (LRU *)malloc(sizeof(LRU));

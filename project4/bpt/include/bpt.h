@@ -1,9 +1,9 @@
 /**
  *    @class Database System
  *    @file  bpt.h
- *    @brief Disk-based B+ tree with buffer 
+ *    @brief join 
  *    @author Kibeom Kwon (kgbum2222@gmail.com)
- *    @since 2017-11-14
+ *    @since 2017-11-23
  */
 
 #ifndef __BPT_H__

@@ -1,0 +1,8 @@
+cscope.*
+*.o
+.*.swp
+test
+test.db
+test2.db
+libbpt.a
+db
