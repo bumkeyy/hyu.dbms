@@ -74,12 +74,12 @@ int main( int argc, char ** argv ) {
 }*/
 
 
-#define NUM_COMMAND	1000
+#define NUM_COMMAND	10000000
 
 int main() {
 
 	int i;
-	int num_buf = 15;
+	int num_buf = 6;
 	int table_id1;
 	int table_id2, table_id3;
 	char string[120];
@@ -99,6 +99,7 @@ int main() {
 		printf("open_db() error!!\n");
 		return 0;
 	}
+	/*
 	if((table_id2 = open_table(file2)) <= 0) {
 		printf("open_db() error!!\n");
 		return 0;
@@ -107,7 +108,7 @@ int main() {
 		printf("open_db() error!!\n");
 		return 0;
 	}
-
+*/
 
 
 	// insert
@@ -118,7 +119,6 @@ int main() {
 		}
 		printf("insert(%d, %s)\n", i, string_set[i%3]);
 	}
-
 
 	// find
 	for (i = 0; i < NUM_COMMAND; i++) {

@@ -26,8 +26,9 @@
 #define HEADERPAGE_OFFSET 0
 #define VALUE_SIZE	120
 #define PAGE_SIZE	4096
-#define BUF_SIZE	100000
+//#define BUF_SIZE	100000
 #define TABLE_SIZE	11
+#define PAGE_NONE	-1
 
 // TYPES.
 
@@ -128,13 +129,11 @@ typedef struct internal_page {
 
 #pragma pack(pop)
 
-// GLOBALS
-
-extern int fd;
-extern Buf ** buf;
-extern int num_buf;
-
 // FUNCTION PROTOTYPES.
+
+Buf * buf;
+LRU_LIST * LRU_list;
+int num_buf;
 
 // OPEN AND INIT
 int cut(int length);

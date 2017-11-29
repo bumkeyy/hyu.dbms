@@ -8,11 +8,6 @@
 
 #include "bpt.h"
 
-// GLOBALS.
-
-Buf ** buf;
-LRU_LIST * LRU_list;
-int num_buf;
 
 // OPEN AND INIT BUF
 
@@ -25,12 +20,27 @@ int cut (int length) {
 
 // Initialize headerpage.
 Buf * init_headerpage (int table_id) {
+	int i;
+
+	for (i = 0; i < num_buf; i++) 
+		if (buf[i].page_offset == PAGE_NONE) 
+			break;
+
 	Buf * hb;
-	hb = &buf[table_id][0];
+	hb = &buf[i];
 	hb->table_id = table_id;
 	hb->page_offset = HEADERPAGE_OFFSET;
-	hb->pin_count = 0;
+	hb->pin_count = 1;
 	hb->is_dirty = 1;
+
+	// Update LRU
+	hb->lru->next = LRU_list->head->next;
+	LRU_list->head->next->prev = hb->lru;
+	hb->lru->prev = LRU_list->head;
+	LRU_list->head->next = hb->lru;
+	hb->in_LRU = true;
+	LRU_list->num_lru++;
+
 	return hb;
 }
 
@@ -57,6 +67,7 @@ void write_page(int table_id, Page * page, int64_t size, int64_t offset) {
 /* Initialize buf array before open database file or make database file.
  * Using buf array make reusing page structure.
  */
+/*
 void init_buf(int table_id) {
 	int i, j;
 	buf[table_id] = (Buf *)malloc(sizeof(Buf)*BUF_SIZE);
@@ -71,14 +82,24 @@ void init_buf(int table_id) {
 		buf[table_id][i].lru = (LRU *)malloc(sizeof(LRU));
 	}
 }
+*/
 
 /* Allocate the buffer pool (array) with the given number of entries.
  * Initialize other fields (state info, LRU info..) with your own design.
  * If success, return 0. Otherwise, return non-zero value.
  */
 int init_db(int num) {
+	int i;
 	num_buf = num;
-	buf = (Buf **) malloc(sizeof(Buf *) * TABLE_SIZE);
+	buf = (Buf *) malloc(sizeof(Buf) * num_buf);
+	for (i = 0; i < num_buf; i++) {
+		buf[i].page = (Page *) malloc(sizeof(Page));
+		buf[i].table_id = 0;
+		buf[i].page_offset = PAGE_NONE;
+		buf[i].is_dirty = false;
+		buf[i].pin_count = 0;
+		buf[i].lru = (LRU *) malloc(sizeof(LRU));
+	}
 	LRU_list = (LRU_LIST *)malloc(sizeof(LRU_LIST));
 	LRU * dummy_head = (LRU *)malloc(sizeof(LRU));
 	LRU * dummy_tail = (LRU *)malloc(sizeof(LRU));
@@ -122,6 +143,7 @@ void make_victim() {
 
 	vb->is_dirty = false;
 	vb->in_LRU = false;
+	vb->page_offset = PAGE_NONE;
 
 	LRU_list->num_lru--;
 }
@@ -130,14 +152,14 @@ void make_victim() {
  * If success return 0. Otherwise, return non_zero value.
  */
 int update_LRU(Buf * b) {
-	if (LRU_list->num_lru >= num_buf && !b->in_LRU) {
+	if (LRU_list->num_lru >= num_buf && b->in_LRU == false) {
 		make_victim();
 	}
 
 	b->lru->buf = b;
 	
 	// If page already exists in buffer.
-	if (b->in_LRU) {
+	if (b->in_LRU == true) {
 		b->lru->prev->next = b->lru->next;
 		b->lru->next->prev = b->lru->prev; 
 		LRU_list->num_lru--;
@@ -147,6 +169,7 @@ int update_LRU(Buf * b) {
 	LRU_list->head->next->prev = b->lru;
 	b->lru->prev = LRU_list->head;
 	LRU_list->head->next = b->lru;
+	b->in_LRU = true;
 
 	LRU_list->num_lru++;
 	if (LRU_list->num_lru > num_buf) {
@@ -154,7 +177,6 @@ int update_LRU(Buf * b) {
 		return -1;
 	}
 
-	b->in_LRU = true;
 	b->pin_count++;
 
 	return 0;
@@ -165,16 +187,25 @@ int update_LRU(Buf * b) {
  * If not, return NULL
  */
 Buf * find_buf(int table_id, int64_t offset) {
-	int buf_idx = offset / PAGE_SIZE;
+	int i;
 
 	// If not exist.
 	// -1 is not read.
+	/*
 	if (buf[table_id][buf_idx].page_offset == -1 || buf[table_id][buf_idx].in_LRU != true)
 		return NULL;
+	*/
 
-	update_LRU(&buf[table_id][buf_idx]);
+	// Find page in buffer pool.
+	for (i = 0; i < num_buf; i++) {
+		if (buf[i].table_id == table_id && buf[i].page_offset == offset) {
+			update_LRU(&buf[i]);
+			return &buf[i];
+		}
+	}
 
-	return &buf[table_id][buf_idx];
+	// If not exist
+	return NULL;
 }
 
 /* Make Buf structure
@@ -184,14 +215,33 @@ Buf * make_buf(int table_id, int64_t offset) {
 	header_page * hp;
 	Buf * hb;
 	
-	int buf_idx;
+	int i;
 	int64_t free_offset;
 
-	buf_idx = offset / PAGE_SIZE;
 	free_offset = offset;
-
+	
 	hb = get_buf(table_id, HEADERPAGE_OFFSET);
 	hp = (header_page *)hb->page;
+
+	// If buffer is full
+	if (LRU_list->num_lru == num_buf) {
+		make_victim();
+		for (i = 0; i < num_buf; i++) {
+			if (buf[i].page_offset == PAGE_NONE) {
+				break;
+			}
+		}
+		if (i == num_buf) {
+			printf("All page is used!!!!\n");
+			return;
+		}
+	} else {
+		for (i = 0; i < num_buf; i++) {
+			if (buf[i].page_offset == PAGE_NONE) {
+				break;
+			}
+		}
+	}
 
 	// If free page assigned
 	if (hp->free_page == offset) {
@@ -220,17 +270,17 @@ Buf * make_buf(int table_id, int64_t offset) {
 
 	} else {
 	// If read page first
-		read_page(table_id, buf[table_id][buf_idx].page, PAGE_SIZE, offset);
+		read_page(table_id, buf[i].page, PAGE_SIZE, offset);
 	}
-
-	buf[table_id][buf_idx].page_offset = offset;
-	buf[table_id][buf_idx].table_id = table_id;
-	buf[table_id][buf_idx].is_dirty = false;
-	if (update_LRU(&buf[table_id][buf_idx]) != 0) {
+	
+	buf[i].page_offset = offset;
+	buf[i].table_id = table_id;
+	buf[i].is_dirty = false;
+	if (update_LRU(&buf[i]) != 0) {
 		printf("make_buf(update_LRU)) error!!!\n");
 	}
 	
-	return &buf[table_id][buf_idx];
+	return &buf[i];
 }
 
 /* To get Buf structure of its offset
@@ -264,13 +314,12 @@ int open_table(char* pathname) {
 			return -1;
 		} else {
 			table_id = fd - 2;
-			init_buf(table_id);
 			// Success to access, read header page
 			hb = init_headerpage(table_id);
 			read_page(table_id, hb->page, PAGE_SIZE, HEADERPAGE_OFFSET);
 			hp = (header_page *)hb->page;
 			printf("root_offset: %ld \n", hp->root_page);
-			update_LRU(hb);
+		//	update_LRU(hb);
 			release_pincount(hb);
 			return table_id;
 		}
@@ -281,7 +330,7 @@ int open_table(char* pathname) {
 			return -1;
 		} else {
 			table_id = fd - 2;
-			init_buf(table_id);
+			//init_buf(table_id);
 			// Success to make file, initialize header page and write into file.
 			hb = init_headerpage(table_id);
 			hp = (header_page *)hb->page;
@@ -289,7 +338,7 @@ int open_table(char* pathname) {
 			hp->root_page = 0;
 			hp->num_pages = 1;	// header page
 
-			update_LRU(hb);
+			//	update_LRU(hb);
 
 			// Make root page. 
 			// First root page is leaf page.
@@ -334,6 +383,7 @@ int close_table(int table_id) {
 
 			vb->is_dirty = false;
 			vb->in_LRU = false;
+			vb->page_offset = PAGE_NONE;
 
 			LRU_list->num_lru--;
 
@@ -362,6 +412,7 @@ int shutdouwn(int table_id) {
 
 		vb->is_dirty = false;
 		vb->in_LRU = false;
+		vb->page_offset = PAGE_NONE;
 
 		LRU_list->num_lru--;
 
@@ -564,6 +615,7 @@ int insert_into_internal_after_splitting(int table_id, Buf * b, int left_index,
 
 	new_b = get_buf(table_id, hp->free_page);
 	new_page = (internal_page *)new_b->page;
+	new_page->is_leaf = false;
 	new_page->num_keys = 0;
 	old_page->num_keys = 0;
 
@@ -717,8 +769,9 @@ int insert_into_new_root(int table_id, Buf * left_b, int64_t key, Buf * right_b)
 	root->records[0].key = key;
 	root->one_more_page = left_b->page_offset;
 	root->records[0].page_offset = right_b->page_offset;
-	root->num_keys++;
+	root->num_keys = 1;
 	root->parent_page = 0;
+	root->is_leaf = false;
 	left->parent_page = root_b->page_offset;
 	right->parent_page = root_b->page_offset;
 	hp->root_page = root_b->page_offset;
