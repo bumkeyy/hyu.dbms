@@ -1,4 +1,3 @@
-#include "bpt.h"
 
 // MAIN
 /*
@@ -73,16 +72,19 @@ int main( int argc, char ** argv ) {
     return EXIT_SUCCESS;
 }*/
 
+#include "bpt.h"
 
 #define NUM_COMMAND	1000
 
 int main() {
 
 	int i;
-	int num_buf = 15;
-	int table_id;
+	int num_buf = 6;
+	int table_id1;
+	int table_id2, table_id3;
 	char string[120];
-	char* file = "text";
+	char* file1 = "text1";
+	char* file2 = "text2";
 	char* string_set[3] = {
 	"val1",
 	"val2",
@@ -93,52 +95,71 @@ int main() {
 		return 0;
 	}
 
-	if((table_id = open_table(file)) <= 0) {
+	if((table_id1 = open_table(file1)) <= 0) {
 		printf("open_db() error!!\n");
 		return 0;
 	}
+	/*
+	if((table_id2 = open_table(file2)) <= 0) {
+		printf("open_db() error!!\n");
+		return 0;
+	}
+	if((table_id3 = open_table("ads")) <= 0) {
+		printf("open_db() error!!\n");
+		return 0;
+	}
+*/
 
 
 	// insert
 	
 	for (i = 0; i < NUM_COMMAND; i++) {
-		if (insert(table_id, i, string_set[i%3])){
+		if (insert(table_id1, i, string_set[i%3])){
 			printf("insert(%d) error!\n", i);
 		}
 		printf("insert(%d, %s)\n", i, string_set[i%3]);
 	}
 
-
 	// find
 	for (i = 0; i < NUM_COMMAND; i++) {
-		if (find(table_id ,i) == NULL){
+		if (find(table_id1 ,i) == NULL){
 			printf("find(%d) fail!\n", i);
 			continue;
 		}
-		strcpy(string, find(table_id, i));
+		strcpy(string, find(table_id1, i));
 		printf("find(%d) : %s \n", i, string);
 	}
 /*	
 	// delete
 	for (i = 0; i < NUM_COMMAND; i++) {
-		if (delete(table_id, i)){
+		if (delete(table_id1, i)){
 			printf("delete(%d) error!\n", i);
 			continue;
 		}
 		printf("delete(%d) \n", i);
 	}	
-	
+*/
+
+	if (close_table(table_id1) != 0) {
+		printf("close_table() error!!!\n");
+		return 0;
+	}
+	if((table_id1 = open_table(file1)) <= 0) {
+		printf("open_db() error!!\n");
+		return 0;
+	}
+
 	// find
 	for (i = 0; i < NUM_COMMAND; i++) {
-		if (find(table_id, i) == NULL){
+		if (find(table_id1, i) == NULL){
 			printf("find(%d) fail!\n", i);
 			continue;
 		}
-		strcpy(string, find(table_id, i));
+		strcpy(string, find(table_id1, i));
 		printf("find(%d) : %s \n", i, string);
 	}
-*/
-	if (close_table(table_id) != 0) {
+
+	if (close_table(table_id1) != 0) {
 		printf("close_table() error!!!\n");
 		return 0;
 	}

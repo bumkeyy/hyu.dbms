@@ -1,18 +1,13 @@
 /**
  *    @class Database System
  *    @file  bpt.c
- *    @brief Disk-based B+ tree with buffer 
+ *    @brief disk_based bpt 
  *    @author Kibeom Kwon (kgbum2222@gmail.com)
- *    @since 2017-11-14
+ *    @since 2017-11-23
  */       
 
 #include "bpt.h"
 
-// GLOBALS.
-
-Buf ** buf;
-LRU_LIST * LRU_list;
-int num_buf;
 
 // OPEN AND INIT BUF
 
@@ -21,27 +16,6 @@ int cut (int length) {
 		return length / 2;
 	else
 		return (length / 2) + 1;
-}
-
-// Initialize headerpage.
-Buf * init_headerpage (int table_id) {
-	Buf * hb;
-	hb = &buf[table_id][0];
-	hb->table_id = table_id;
-	hb->page_offset = HEADERPAGE_OFFSET;
-	hb->pin_count = 0;
-	hb->is_dirty = 1;
-	return hb;
-}
-
-// Release pin_count of page.
-void release_pincount(Buf * b) {
-	b->pin_count--;
-}
-
-// Mark dirty bit of page.
-void mark_dirty(Buf * b) {
-	b->is_dirty = true;
 }
 
 // Read page from file
@@ -53,326 +27,6 @@ void read_page(int table_id, Page * page, int64_t size, int64_t offset) {
 void write_page(int table_id, Page * page, int64_t size, int64_t offset) {
 	pwrite(table_id + 2, page, size, offset);
 }
-
-/* Initialize buf array before open database file or make database file.
- * Using buf array make reusing page structure.
- */
-void init_buf(int table_id) {
-	int i, j;
-	buf = (Buf **) malloc(sizeof(Buf *) * TABLE_SIZE);
-	buf[table_id] = (Buf *)malloc(sizeof(Buf)*BUF_SIZE);
-
-	for (i = 0; i < BUF_SIZE; i++) {
-		buf[table_id][i].page = (Page *)malloc(sizeof(Page));
-		buf[table_id][i].page_offset = -1;
-		buf[table_id][i].table_id = table_id;
-		buf[table_id][i].pin_count = 0;
-		buf[table_id][i].is_dirty = false;
-		buf[table_id][i].in_LRU = false;
-		buf[table_id][i].lru = (LRU *)malloc(sizeof(LRU));
-	}
-}
-
-/* Allocate the buffer pool (array) with the given number of entries.
- * Initialize other fields (state info, LRU info..) with your own design.
- * If success, return 0. Otherwise, return non-zero value.
- */
-int init_db(int num) {
-	num_buf = num;
-	LRU_list = (LRU_LIST *)malloc(sizeof(LRU_LIST));
-	LRU * dummy_head = (LRU *)malloc(sizeof(LRU));
-	LRU * dummy_tail = (LRU *)malloc(sizeof(LRU));
-	dummy_head->next = dummy_tail;
-	dummy_tail->prev = dummy_head;
-	LRU_list->head = dummy_head;
-	LRU_list->tail = dummy_tail;
-	LRU_list->num_lru = 0;
-	return 0;
-}
-
-/* Make victim page and remove.
- */
-void make_victim() {
-	Buf * vb;
-	LRU * d_lru;
-
-	while (1) {
-		d_lru = LRU_list->tail->prev;
-
-		// Remove in LRU_list.
-		d_lru->prev->next = LRU_list->tail;
-		LRU_list->tail->prev = d_lru->prev; 
-
-		vb = d_lru->buf;
-
-		if (vb->pin_count != 0) {
-			// If victim page is using, current page moves to head of LRU_list
-			d_lru->next = LRU_list->head->next;
-			LRU_list->head->next->prev = d_lru;
-			d_lru->prev = LRU_list->head;
-			LRU_list->head->next = d_lru;
-			continue;
-		}
-		break;
-	}
-		
-	if (vb->is_dirty) {
-		write_page(vb->table_id, vb->page, PAGE_SIZE, vb->page_offset);
-	}
-
-	vb->is_dirty = false;
-	vb->in_LRU = false;
-
-	LRU_list->num_lru--;
-}
-
-/* Upate LRU.
- * If success return 0. Otherwise, return non_zero value.
- */
-int update_LRU(Buf * b) {
-	if (LRU_list->num_lru >= num_buf && !b->in_LRU) {
-		make_victim();
-	}
-
-	b->lru->buf = b;
-	
-	// If page already exists in buffer.
-	if (b->in_LRU) {
-		b->lru->prev->next = b->lru->next;
-		b->lru->next->prev = b->lru->prev; 
-		LRU_list->num_lru--;
-	}
-
-	b->lru->next = LRU_list->head->next;
-	LRU_list->head->next->prev = b->lru;
-	b->lru->prev = LRU_list->head;
-	LRU_list->head->next = b->lru;
-
-	LRU_list->num_lru++;
-	if (LRU_list->num_lru > num_buf) {
-		printf("update_LRU() error!!!!\n");
-		return -1;
-	}
-
-	b->in_LRU = true;
-	b->pin_count++;
-
-	return 0;
-}
-	
-/* Find Buf structure of its offset.
- * If exist, return buf pointer.
- * If not, return NULL
- */
-Buf * find_buf(int table_id, int64_t offset) {
-	int buf_idx = offset / PAGE_SIZE;
-
-	// If not exist.
-	// -1 is not read.
-	if (buf[table_id][buf_idx].page_offset == -1 || buf[table_id][buf_idx].in_LRU != true)
-		return NULL;
-
-	update_LRU(&buf[table_id][buf_idx]);
-
-	return &buf[table_id][buf_idx];
-}
-
-/* Make Buf structure
- */
-Buf * make_buf(int table_id, int64_t offset) {
-	free_page * fp;
-	header_page * hp;
-	Buf * hb;
-	
-	int buf_idx;
-	int64_t free_offset;
-
-	buf_idx = offset / PAGE_SIZE;
-	free_offset = offset;
-
-	hb = get_buf(table_id, HEADERPAGE_OFFSET);
-	hp = (header_page *)hb->page;
-
-	// If free page assigned
-	if (hp->free_page == offset) {
-		fp = (free_page *)malloc(sizeof(free_page));
-		read_page(table_id, (Page *)fp, PAGE_SIZE, offset);
-
-		if (fp->next_page == 0) {
-		// If next freepage doesn't exist
-			while (1) {
-				free_offset += PAGE_SIZE;
-				read_page(table_id, (Page *)fp, PAGE_SIZE, free_offset);
-				if (fp->next_page == 0 && hp->root_page != free_offset) {
-					hp->free_page = free_offset;
-					break;
-				}
-			}
-		} else {
-		// If next freepage exists
-			hp->free_page = fp->next_page;
-		}
-
-		hp->num_pages++;
-		mark_dirty(hb);
-		release_pincount(hb);
-		free(fp);
-
-	} else {
-	// If read page first
-		read_page(table_id, buf[table_id][buf_idx].page, PAGE_SIZE, offset);
-	}
-
-	buf[table_id][buf_idx].page_offset = offset;
-	buf[table_id][buf_idx].table_id = table_id;
-	buf[table_id][buf_idx].is_dirty = false;
-	if (update_LRU(&buf[table_id][buf_idx]) != 0) {
-		printf("make_buf(update_LRU)) error!!!\n");
-	}
-	
-	return &buf[table_id][buf_idx];
-}
-
-/* To get Buf structure of its offset
- * if page already exists, get Buf structure.
- * If not, assign Buf and read page of its offset.
- */
-Buf * get_buf(int table_id, int64_t offset) {
-	Buf * b;
-	
-	if ((b = find_buf(table_id, offset)) != NULL)
-		return b;
-
-	// If page is first read, read page
-	return make_buf(table_id, offset);
-}
-
-/* Open existing data file using ‘pathname’ or create one if not existed.
- * If success, return table_id. Otherwise, return -1.
- */
-int open_table(char* pathname) {
-	int fd;
-	int table_id;
-	header_page * hp;
-	Buf * hb;
-	 
-	hp = (header_page *)malloc(sizeof(header_page));
-	// If file exists
-	if (access(pathname, 0) == 0) {
-		if ((fd = open(pathname, O_RDWR | O_SYNC, 0644)) == -1) {
-			// Fail to access
-			return -1;
-		} else {
-			table_id = fd - 2;
-			init_buf(table_id);
-			// Success to access, read header page
-			hb = init_headerpage(table_id);
-			read_page(table_id, hb->page, PAGE_SIZE, HEADERPAGE_OFFSET);
-			hp = (header_page *)hb->page;
-			printf("root_offset: %ld \n", hp->root_page);
-			update_LRU(hb);
-			release_pincount(hb);
-			return table_id;
-		}
-	} else {
-		// If file doesn't exist, make file and initialize header page and write into file.
-		if ((fd = open(pathname, O_CREAT | O_RDWR | O_SYNC, 0644)) == -1) {
-			// Fail to make file.
-			return -1;
-		} else {
-			table_id = fd - 2;
-			init_buf(table_id);
-			// Success to make file, initialize header page and write into file.
-			hb = init_headerpage(table_id);
-			hp = (header_page *)hb->page;
-			hp->free_page = PAGE_SIZE;
-			hp->root_page = 0;
-			hp->num_pages = 1;	// header page
-
-			update_LRU(hb);
-
-			// Make root page. 
-			// First root page is leaf page.
-			Buf * b = get_buf(table_id, hp->free_page);
-			leaf_page * root = (leaf_page *) b->page;
-			root->parent_page = 0;
-			root->is_leaf = 1;
-			root->num_keys = 0;
-			root->right_sibling = 0;
-
-			hp->root_page = b->page_offset;
-
-			hp->num_pages++;
-
-			// write page into disk
-			mark_dirty(b);
-			mark_dirty(hb);
-
-			release_pincount(b);
-			release_pincount(hb);
-			return table_id;
-		}
-	}
-}
-
-int close_table(int table_id) {
-	LRU * cur;
-	cur = LRU_list->head->next;
-	while (cur != LRU_list->tail) {
-		if (cur->buf->table_id == table_id) {
-			Buf * vb;
-
-			// Remove in LRU_list.
-			cur->prev->next = cur->next;
-			cur->next->prev = cur->prev; 
-
-			vb = cur->buf;
-
-			if (vb->is_dirty) {
-				write_page(vb->table_id, vb->page, PAGE_SIZE, vb->page_offset);
-			}
-
-			vb->is_dirty = false;
-			vb->in_LRU = false;
-
-			LRU_list->num_lru--;
-
-			cur = cur->next;
-
-		}
-	}
-	return 0;
-}
-
-int shutdouwn(int table_id) {
-	LRU * cur;
-	cur = LRU_list->head->next;
-	while (cur != LRU_list->tail) {
-		Buf * vb;
-
-		// Remove in LRU_list.
-		cur->prev->next = cur->next;
-		cur->next->prev = cur->prev; 
-
-		vb = cur->buf;
-
-		if (vb->is_dirty) {
-			write_page(vb->table_id, vb->page, PAGE_SIZE, vb->page_offset);
-		}
-
-		vb->is_dirty = false;
-		vb->in_LRU = false;
-
-		LRU_list->num_lru--;
-
-		cur = cur->next;
-	}
-	if (LRU_list->num_lru == 0) {
-		return 0;
-	}
-	return -1;
-}
-
 
 // FIND < KEY >
 
@@ -564,6 +218,7 @@ int insert_into_internal_after_splitting(int table_id, Buf * b, int left_index,
 
 	new_b = get_buf(table_id, hp->free_page);
 	new_page = (internal_page *)new_b->page;
+	new_page->is_leaf = false;
 	new_page->num_keys = 0;
 	old_page->num_keys = 0;
 
@@ -717,8 +372,9 @@ int insert_into_new_root(int table_id, Buf * left_b, int64_t key, Buf * right_b)
 	root->records[0].key = key;
 	root->one_more_page = left_b->page_offset;
 	root->records[0].page_offset = right_b->page_offset;
-	root->num_keys++;
+	root->num_keys = 1;
 	root->parent_page = 0;
+	root->is_leaf = false;
 	left->parent_page = root_b->page_offset;
 	right->parent_page = root_b->page_offset;
 	hp->root_page = root_b->page_offset;

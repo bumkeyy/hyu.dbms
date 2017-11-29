@@ -1,9 +1,9 @@
 /**
  *    @class Database System
  *    @file  bpt.h
- *    @brief Disk-based B+ tree with buffer 
+ *    @brief buffer 
  *    @author Kibeom Kwon (kgbum2222@gmail.com)
- *    @since 2017-11-14
+ *    @since 2017-11-23
  */
 
 #ifndef __BPT_H__
@@ -26,8 +26,7 @@
 #define HEADERPAGE_OFFSET 0
 #define VALUE_SIZE	120
 #define PAGE_SIZE	4096
-#define BUF_SIZE	100000
-#define TABLE_SIZE	11
+#define PAGE_NONE	-1
 
 // TYPES.
 
@@ -128,18 +127,15 @@ typedef struct internal_page {
 
 #pragma pack(pop)
 
-// GLOBALS
-
-extern int fd;
-extern Buf ** buf;
-extern int num_buf;
-
 // FUNCTION PROTOTYPES.
+
+Buf * buf;
+LRU_LIST * LRU_list;
+int num_buf;
 
 // OPEN AND INIT
 int cut(int length);
 int open_table(char* pathname);
-void init_buf(int table_id);
 Buf * get_buf(int table_id, int64_t offset);
 Buf * find_buf(int table_id, int64_t offset);
 Buf * make_buf(int table_id, int64_t offset);
@@ -148,8 +144,13 @@ void write_page(int table_id, Page * page, int64_t size, int64_t offset);
 
 // BUFFER POOL
 int init_db(int num_buf);
+Buf * register_header_LRU(Buf * hb);
+void init_buf(int i);
+void init_LRU(void);
 int update_LRU(Buf * b);
 void make_victim(void);
+int get_free_buffer_index(void);
+void alloc_freepage(int table_id, Buf * hb, int64_t offset);
 Buf * init_headerpage (int table_id);
 void mark_dirty(Buf * b);
 void release_pincount(Buf * b);
