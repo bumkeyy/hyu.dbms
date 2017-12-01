@@ -59,6 +59,7 @@ int push_resultpage(FILE * fp, result_page * rp, leaf_page * l1, leaf_page * l2,
 		while (num_result > 0) {
 			int i = JOIN_RESULT_SIZE - num_result;
 			fprintf(fp, "%" PRId64",%s,%" PRId64",%s\n", rp->value[i].key1, rp->value[i].value1, rp->value[i].key2, rp->value[i].value2); 
+			fflush(fp);
 			num_result--;	
 		}
 	}
@@ -78,6 +79,7 @@ void flush_resultpage(FILE * fp, result_page * rp, int num_result) {
 	int i = 0;
 	while (i < num_result) {
 			fprintf(fp, "%" PRId64",%s,%" PRId64",%s\n", rp->value[i].key1, rp->value[i].value1, rp->value[i].key2, rp->value[i].value2); 
+			fflush(fp);
 			i++;	
 		}
 }
