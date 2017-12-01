@@ -15,6 +15,7 @@
 #include <stdbool.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #define false 0
 #define true 1
 
@@ -66,11 +67,12 @@ struct LRU {
 	struct LRU * next;
 };
 
-typedef struct result_value{
+
+typedef struct resultvalue{
 		int64_t key1;
 		char value1[120];
 		int64_t key2;
-		char value2[120]
+		char value2[120];
 } result_value; 
 
 typedef struct result {

@@ -58,14 +58,11 @@ int push_resultpage(FILE * fp, result_page * rp, leaf_page * l1, leaf_page * l2,
 	if (num_result == JOIN_RESULT_SIZE) {
 		while (num_result > 0) {
 			int i = JOIN_RESULT_SIZE - num_result;
-			//printf("result page is full!!! call fprintf()!!! %d\n", i);
-			//printf("%lld,%s,%lld,%s\n", rp->value[i].key1, rp->value[i].value1, rp->value[i].key2, rp->value[i].value2); 
-			fprintf(fp, "%lld,%s,%lld,%s\n", rp->value[i].key1, rp->value[i].value1, rp->value[i].key2, rp->value[i].value2); 
+			fprintf(fp, "%" PRId64",%s,%" PRId64",%s\n", rp->value[i].key1, rp->value[i].value1, rp->value[i].key2, rp->value[i].value2); 
 			num_result--;	
 		}
 	}
 
-	//printf("push to result(%d) :  %d,  %d \n", num_result, num_key_1, num_key_2);
 	rp->value[num_result].key1 = l1->records[num_key_1].key;
 	memcpy(rp->value[num_result].value1, l1->records[num_key_1].value, VALUE_SIZE);
 	rp->value[num_result].key2 = l2->records[num_key_2].key;
@@ -80,7 +77,7 @@ void flush_resultpage(FILE * fp, result_page * rp, int num_result) {
 
 	int i = 0;
 	while (i < num_result) {
-			fprintf(fp, "%lld,%s,%lld,%s\n", rp->value[i].key1, rp->value[i].value1, rp->value[i].key2, rp->value[i].value2); 
+			fprintf(fp, "%" PRId64",%s,%" PRId64",%s\n", rp->value[i].key1, rp->value[i].value1, rp->value[i].key2, rp->value[i].value2); 
 			i++;	
 		}
 }
@@ -184,7 +181,6 @@ int join_table(int table_id_1, int table_id_2, char * pathname) {
 			num_key_2 = mark;
 			num_key_1++;
 		}
-
 	}
 	return 0;
 }

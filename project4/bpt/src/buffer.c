@@ -184,7 +184,7 @@ int update_LRU(Buf * b) {
 
 	LRU_list->num_lru++;
 	if (LRU_list->num_lru > num_buf) {
-		printf("update_LRU() error!!!!\n");
+	//	printf("update_LRU() error!!!!\n");
 		return -1;
 	}
 
@@ -291,7 +291,7 @@ Buf * make_buf(int table_id, int64_t offset) {
 	buf[buf_idx].table_id = table_id;
 	buf[buf_idx].is_dirty = false;
 	if (update_LRU(&buf[buf_idx]) != 0) {
-		printf("make_buf(update_LRU)) error!!!\n");
+		//printf("make_buf(update_LRU)) error!!!\n");
 	}
 
 	release_pincount(hb);
@@ -333,12 +333,6 @@ int open_table(char* pathname) {
 			return -1;
 		} else {
 			table_id = fd - 2;
-			// Success to access, read header page
-			//hb = init_headerpage(table_id);
-			//read_page(table_id, hb->page, PAGE_SIZE, HEADERPAGE_OFFSET);
-			//hp = (header_page *)hb->page;
-			//printf("root_offset: %ld \n", hp->root_page);
-			//release_pincount(hb);
 			return table_id;
 		}
 	} else {
@@ -408,7 +402,8 @@ int close_table(int table_id) {
 	return 0;
 }
 
-int shutdouwn_db(int table_id) {
+int shutdown_db() {
+	int i;
 	LRU * cur;
 	cur = LRU_list->head->next;
 	while (cur != LRU_list->tail) {
@@ -430,6 +425,9 @@ int shutdouwn_db(int table_id) {
 		LRU_list->num_lru--;
 
 		cur = cur->next;
+	}
+	for (i = 1; i < 11; i++) {
+		close(i);
 	}
 	if (LRU_list->num_lru == 0) {
 		return 0;

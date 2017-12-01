@@ -10,8 +10,8 @@ LIBS=lib/
 # OBJS:=$(SRCS:.c=.o)
 
 # main source file
-TARGET_SRC:=$(SRCDIR)main.c
-TARGET_OBJ:=$(SRCDIR)main.o
+TARGET_SRC:=$(SRCDIR)my_main.c
+TARGET_OBJ:=$(SRCDIR)my_main.o
 
 # Include more files if you write another source file.
 SRCS_FOR_LIB:=$(SRCDIR)bpt.c  $(SRCDIR)buffer.c  $(SRCDIR)join.c 
@@ -31,7 +31,7 @@ $(TARGET): $(TARGET_OBJ)
 	$(CC) $(CFLAGS) -o $@ $^ -L $(LIBS) -lbpt
 
 clean:
-	rm $(TARGET) $(TARGET_OBJ) $(OBJS_FOR_LIB) $(LIBS)*  result text*
+	rm $(TARGET) $(TARGET_OBJ) $(OBJS_FOR_LIB) $(LIBS)* *.txt *.db text* result 
 
 library:
 	gcc -shared -Wl,-soname,libbpt.so -o $(LIBS)libbpt.so $(OBJS_FOR_LIB)

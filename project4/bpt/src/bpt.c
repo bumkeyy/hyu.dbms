@@ -92,7 +92,7 @@ char * find(int table_id, int64_t key) {
  */
 int insert_into_leaf(Buf * b, int64_t key, char * value) {
 
-	printf("insert_into_leaf : %ld \n", key);
+//	printf("insert_into_leaf : %ld \n", key);
 
 	int i, insertion_point;
 	leaf_page * leaf = (leaf_page *) b->page;
@@ -123,7 +123,7 @@ int insert_into_leaf(Buf * b, int64_t key, char * value) {
  */
 int insert_into_leaf_after_splitting(int table_id, Buf * b, int64_t key, char * value) {
 
-	printf("insert_into_leaf_after_splitting : %ld \n", key);
+//	printf("insert_into_leaf_after_splitting : %ld \n", key);
 	
 	Buf * new_b, * hb;
 	int insertion_index, split, new_key, i, j;
@@ -171,8 +171,8 @@ int insert_into_leaf_after_splitting(int table_id, Buf * b, int64_t key, char * 
 		new_leaf->num_keys++;
 	}
 
+	new_leaf->right_sibling = leaf->right_sibling;
 	leaf->right_sibling = new_b->page_offset;
-	new_leaf->right_sibling = 0;
 	new_leaf->parent_page = leaf->parent_page;
 	new_leaf->is_leaf = 1;
 	new_key = new_leaf->records[0].key;
@@ -191,7 +191,7 @@ int insert_into_leaf_after_splitting(int table_id, Buf * b, int64_t key, char * 
 int insert_into_internal_after_splitting(int table_id, Buf * b, int left_index, 
 		int64_t key, Buf * right_b) {
 	
-	printf("insert_into_internal_after_splitting : %ld \n", key);
+//	printf("insert_into_internal_after_splitting : %ld \n", key);
 
 	int i, j, split, k_prime;
 	Buf * new_b, * child_b, * hb;
@@ -223,16 +223,16 @@ int insert_into_internal_after_splitting(int table_id, Buf * b, int left_index,
 	new_page->num_keys = 0;
 	old_page->num_keys = 0;
 
-	for (i = 0; i < split; i++) {
+	for (i = 0; i < split - 1; i++) {
 		old_page->records[i].page_offset = temp_pageoffset[i];
 		old_page->records[i].key = temp_keys[i];
 		old_page->num_keys++;
 	}
 
-	new_page->one_more_page = temp_pageoffset[i];
-	k_prime = temp_keys[i];
+	new_page->one_more_page = temp_pageoffset[split - 1];
+	k_prime = temp_keys[split - 1];
 
-	for (++i, j = 0; i < INTERNAL_ORDER; i++, j++) {
+	for (i = split, j = 0; i < INTERNAL_ORDER; i++, j++) {
 		new_page->records[j].page_offset = temp_pageoffset[i];
 		new_page->records[j].key = temp_keys[i];
 		new_page->num_keys++;
@@ -258,7 +258,7 @@ int insert_into_internal_after_splitting(int table_id, Buf * b, int left_index,
 	mark_dirty(new_b);
 
 	release_pincount(right_b);
-
+	
 	return insert_into_parent(table_id, b, k_prime, new_b); 
 }
 
@@ -287,10 +287,11 @@ int get_left_index(Buf * b, Buf * left_b) {
  */
 int insert_into_internal(Buf * b, int left_index, int64_t key, Buf * right_b) {
 
-	printf("insert_into_internal : %ld \n", key);
+//	printf("insert_into_internal : %ld \n", key);
 	int i;
-	internal_page * parent;
+	internal_page * parent, * right;
 	parent = (internal_page *)b->page;
+	right = (internal_page *) right_b->page;
 
 	for (i = parent->num_keys; i > left_index; i--) {
 		parent->records[i].page_offset = parent->records[i - 1].page_offset;
@@ -298,10 +299,13 @@ int insert_into_internal(Buf * b, int left_index, int64_t key, Buf * right_b) {
 	}
 	parent->records[left_index].page_offset = right_b->page_offset;
 	parent->records[left_index].key = key;
+	right->parent_page = b->page_offset;
+	
 	parent->num_keys++;
 
 	// Write to disk
 	mark_dirty(b);
+	mark_dirty(right_b);
 
 	release_pincount(b);
 	release_pincount(right_b);
@@ -356,7 +360,7 @@ int insert_into_parent(int table_id, Buf * left_b, int64_t key, Buf * right_b) {
  */
 int insert_into_new_root(int table_id, Buf * left_b, int64_t key, Buf * right_b) {
 
-	printf("insert_into_new_root : %ld \n", key);
+//	printf("insert_into_new_root : %ld \n", key);
 	Buf * root_b, * hb;
 	internal_page * root, * left, * right;
 	header_page * hp;
@@ -407,7 +411,7 @@ int insert(int table_id, int64_t key, char * value) {
 	
 	// If key is duplicate 
 	if (find(table_id, key) != NULL) {
-		printf("error : INSERT DUPLICATE KEY <%ld> !!!\n", key);
+		//printf("error : INSERT DUPLICATE KEY <%ld> !!!\n", key);
 		return -1; 
 	}
 
@@ -851,7 +855,7 @@ int delete(int table_id, int64_t key) {
 	Buf * b;
 	
 	if (find(table_id, key) == NULL) {
-		printf("key : %ld doesn't exist.\n", key);
+	//	printf("key : %ld doesn't exist.\n", key);
 		return 0;
 	}
 
