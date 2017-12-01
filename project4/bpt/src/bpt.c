@@ -172,6 +172,7 @@ int insert_into_leaf_after_splitting(int table_id, Buf * b, int64_t key, char * 
 	}
 
 	leaf->right_sibling = new_b->page_offset;
+	new_leaf->right_sibling = 0;
 	new_leaf->parent_page = leaf->parent_page;
 	new_leaf->is_leaf = 1;
 	new_key = new_leaf->records[0].key;

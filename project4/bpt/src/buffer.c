@@ -8,7 +8,37 @@
 
 #include "bpt.h"
 
+
+Buf * read_headerpage(int table_id) {
+	int i = 0;
+	Buf * hb;
+	// Find buffer frame to use
+	while (1) {
+		if (i == num_buf) {
+			make_victim();
+			i = 0;
+		}
+		if (buf[i].page_offset == PAGE_NONE)
+			break;
+		i++;
+	}
+	// Register header page to buffer frame.
+	hb = &buf[i];
+	read_page(table_id, hb->page, PAGE_SIZE, HEADERPAGE_OFFSET);
+	hb->table_id = table_id;
+	hb->page_offset = HEADERPAGE_OFFSET;
+	hb->pin_count = 1;
+	hb->in_LRU = false;
+	hb->is_dirty = 1;
+
+	return register_header_LRU(hb); 
+}
+
 Buf * register_header_LRU(Buf * hb) {
+
+	if (LRU_list->num_lru >= num_buf && hb->in_LRU == false) {
+		make_victim();
+	}
 
 	// Update LRU
 	hb->lru->next = LRU_list->head->next;
@@ -264,6 +294,8 @@ Buf * make_buf(int table_id, int64_t offset) {
 		printf("make_buf(update_LRU)) error!!!\n");
 	}
 
+	release_pincount(hb);
+
 	return &buf[buf_idx];
 }
 
@@ -277,6 +309,9 @@ Buf * get_buf(int table_id, int64_t offset) {
 	if ((b = find_buf(table_id, offset)) != NULL)
 		return b;
 
+	if (offset == 0) {
+		return read_headerpage(table_id);	
+	}
 	// If page is first read, read page
 	return make_buf(table_id, offset);
 }
@@ -299,11 +334,11 @@ int open_table(char* pathname) {
 		} else {
 			table_id = fd - 2;
 			// Success to access, read header page
-			hb = init_headerpage(table_id);
-			read_page(table_id, hb->page, PAGE_SIZE, HEADERPAGE_OFFSET);
-			hp = (header_page *)hb->page;
-			printf("root_offset: %ld \n", hp->root_page);
-			release_pincount(hb);
+			//hb = init_headerpage(table_id);
+			//read_page(table_id, hb->page, PAGE_SIZE, HEADERPAGE_OFFSET);
+			//hp = (header_page *)hb->page;
+			//printf("root_offset: %ld \n", hp->root_page);
+			//release_pincount(hb);
 			return table_id;
 		}
 	} else {
@@ -361,6 +396,7 @@ int close_table(int table_id) {
 			vb->is_dirty = false;
 			vb->in_LRU = false;
 			vb->page_offset = PAGE_NONE;
+			vb->pin_count = 0;
 
 			LRU_list->num_lru--;
 
@@ -368,6 +404,7 @@ int close_table(int table_id) {
 
 		}
 	}
+	close(table_id + 2);
 	return 0;
 }
 

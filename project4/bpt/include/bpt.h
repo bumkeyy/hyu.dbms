@@ -27,6 +27,9 @@
 #define VALUE_SIZE	120
 #define PAGE_SIZE	4096
 #define PAGE_NONE	-1
+#define OUTPUT_BUFFER	0
+#define OUTPUT_OFFSET	-2
+#define JOIN_RESULT_SIZE	16
 
 // TYPES.
 
@@ -62,6 +65,17 @@ struct LRU {
 	struct LRU * prev;
 	struct LRU * next;
 };
+
+typedef struct result_value{
+		int64_t key1;
+		char value1[120];
+		int64_t key2;
+		char value2[120]
+} result_value; 
+
+typedef struct result {
+	result_value value[16];
+} result_page;
 
 // It LRU_list means buffer list.
 // When reading the page, LRU structure of Page is located head of LRU_list.
@@ -144,6 +158,7 @@ void write_page(int table_id, Page * page, int64_t size, int64_t offset);
 
 // BUFFER POOL
 int init_db(int num_buf);
+Buf * read_headerpage(int table_id);
 Buf * register_header_LRU(Buf * hb);
 void init_buf(int i);
 void init_LRU(void);
@@ -181,6 +196,11 @@ int coalesce_pages (int table_id, Buf * b, Buf * nb, int neighbor_index, int64_t
 int redistribute_pages(int table_id, Buf * b, Buf * nb, int neighbor_index, int k_prime_index, int k_prime);
 
 
-
+// JOIN
+int join_table(int table_id_1, int table_id_2, char * pathname);
+Buf * get_first_leafpage(int table_id);
+Buf * make_outbuffer(void);
+int push_resultpage(FILE * fp, result_page * rp, leaf_page * l1, leaf_page * l2, int num_result, int num_key_1, int num_key_2);
+void flush_resultpage(FILE * fp, result_page * rp, int num_result);
 
 #endif /* __BPT_H__*/
