@@ -7,8 +7,6 @@
 
 #include "bpt.h"
 
-int num_result;
-
 // Find first leaf page.
 Buf * get_first_leafpage(int table_id) {
 	header_page * hp;
@@ -55,18 +53,10 @@ Buf * make_outbuffer() {
 // If key 1 == key 2,
 // push result page to value.
 // Check result page full.
-int push_resultpage(FILE * fp, result_page * rp, leaf_page * l1, leaf_page * l2, int num_key_1, int num_key_2) {
+int push_resultpage(FILE * fp, result_page * rp, leaf_page * l1, leaf_page * l2, int num_key_1, int num_key_2, int num_result) {
 
 	if (num_result == JOIN_RESULT_SIZE) {
-		/*
-		while (num_result > 0) {
-			int i = JOIN_RESULT_SIZE - num_result;
-			fprintf(fp, "%" PRId64",%s,%" PRId64",%s\n", rp->value[i].key1, rp->value[i].value1, rp->value[i].key2, rp->value[i].value2); 
-			fflush(fp);
-			num_result--;	
-		}
-		*/
-		flush_resultpage(fp, rp);
+		flush_resultpage(fp, rp, num_result);
 		num_result = 0;
 	}
 
@@ -74,17 +64,13 @@ int push_resultpage(FILE * fp, result_page * rp, leaf_page * l1, leaf_page * l2,
 	memcpy(rp->value[num_result].value1, l1->records[num_key_1].value, VALUE_SIZE);
 	rp->value[num_result].key2 = l2->records[num_key_2].key;
 	memcpy(rp->value[num_result].value2, l2->records[num_key_2].value, VALUE_SIZE);
-	num_result++;
-	return num_result;
 
-	//return ++num_result;
+	return ++num_result;
 }
 
 // If reach end of file,
 // have to flush result page to result file.
-void flush_resultpage(FILE * fp, result_page * rp) {
-	//printf("flush to result page\n");
-
+void flush_resultpage(FILE * fp, result_page * rp, int num_result) {
 	int i = 0;
 	while (i < num_result) {
 			fprintf(fp, "%" PRId64",%s,%" PRId64",%s\n", rp->value[i].key1, rp->value[i].value1, rp->value[i].key2, rp->value[i].value2); 
@@ -102,7 +88,7 @@ int join_table(int table_id_1, int table_id_2, char * pathname) {
 	leaf_page * leaf_1, * leaf_2;
 	result_page * result;
 	Buf * leaf_buf_1, * leaf_buf_2, * out_buf;
-	int num_key_1, num_key_2, mark;
+	int num_key_1, num_key_2, mark, num_result;
 	int num_end1, num_end2;
 	FILE * fp;
 
@@ -139,22 +125,19 @@ int join_table(int table_id_1, int table_id_2, char * pathname) {
 		// Assert key1 == key2 or end of leaf page.
 		// If search end of leaf page, read next leaf page.
 		if (num_key_1 >= num_end1) {
-			//printf("file 1 : next_leaf_page!!!\n");
 			release_pincount(leaf_buf_1);
 
 			// If current leaf page is end of file,
 			// Flush result page,
 			// Return 0.
 			if (leaf_1->right_sibling == 0) {
-				flush_resultpage(fp, result);
+				flush_resultpage(fp, result, num_result);
 				return 0;
 			} 
 
 			// Go to next leaf page.
 			leaf_buf_1 = get_buf(table_id_1, leaf_1->right_sibling);
-			//printf("right_sibling1 : %lld \n",leaf_1->right_sibling); 
 			leaf_1 = (leaf_page *) leaf_buf_1->page;
-			//printf("first_value : %lld \n", leaf_1->records[0].key);
 
 			num_key_1 = 0;
 			num_end1 = leaf_1->num_keys;
@@ -162,28 +145,24 @@ int join_table(int table_id_1, int table_id_2, char * pathname) {
 
 		// If search end of leaf page, read next leaf page.
 		if (num_key_2 >= num_end2) {
-			//printf("file 2 : next_leaf_page!!!\n");
 			release_pincount(leaf_buf_2);
 
 			// If current leaf page is end of file,
 			// Flush result page,
 			// Return 0.
 			if (leaf_2->right_sibling == 0) {
-				flush_resultpage(fp, result);
+				flush_resultpage(fp, result, num_result);
 				return 0;
 			} 
 
 			// Go to next leaf page.
 			leaf_buf_2 = get_buf(table_id_2, leaf_2->right_sibling);
-			//printf("right_sibling2 : %lld \n",leaf_2->right_sibling); 
 			leaf_2 = (leaf_page *) leaf_buf_2->page;
-			//printf("first_value : %lld \n", leaf_2->records[0].key);
 
 			num_key_2 = 0;
 			num_end2 = leaf_2->num_keys;
 		}
 
-		
 		// Save start of "block"
 		mark = num_key_2;
 
@@ -191,20 +170,12 @@ int join_table(int table_id_1, int table_id_2, char * pathname) {
 			// Outer loop over file 1.
 			while (leaf_1->records[num_key_1].key == leaf_2->records[num_key_2].key && num_key_2 < num_end2) {
 				// Inner loop over file 2.
-				//printf("push result %lld \n", leaf_1->records[num_key_1].key);
-				push_resultpage(fp, result, leaf_1, leaf_2, num_key_1, num_key_2); 
+				num_result = push_resultpage(fp, result, leaf_1, leaf_2, num_key_1, num_key_2, num_result); 
 				num_key_2++;
 			}
 			num_key_2 = mark;
 			num_key_1++;
 		}
-		/*
-		if (leaf_1->records[num_key_1].key == leaf_2->records[num_key_2].key) {
-				//num_result = push_resultpage(fp, result, leaf_1, leaf_2, num_result, num_key_1, num_key_2); 
-				push_resultpage(fp, result, leaf_1, leaf_2, num_key_1, num_key_2); 
-				num_key_1++;
-				num_key_2++;
-		}*/
 	}
 	return 0;
 }
