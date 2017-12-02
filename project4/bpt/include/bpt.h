@@ -19,10 +19,10 @@
 #define false 0
 #define true 1
 
-#define LEAF_ORDER 32
-#define INTERNAL_ORDER	249
-//#define LEAF_ORDER 4
-//#define INTERNAL_ORDER 4
+//#define LEAF_ORDER 32
+//#define INTERNAL_ORDER	249
+#define LEAF_ORDER 4
+#define INTERNAL_ORDER 4
 #define PAGE_HEADER 128
 #define HEADERPAGE_OFFSET 0
 #define VALUE_SIZE	120
@@ -202,7 +202,7 @@ int redistribute_pages(int table_id, Buf * b, Buf * nb, int neighbor_index, int 
 int join_table(int table_id_1, int table_id_2, char * pathname);
 Buf * get_first_leafpage(int table_id);
 Buf * make_outbuffer(void);
-int push_resultpage(FILE * fp, result_page * rp, leaf_page * l1, leaf_page * l2, int num_result, int num_key_1, int num_key_2);
-void flush_resultpage(FILE * fp, result_page * rp, int num_result);
+int push_resultpage(FILE * fp, result_page * rp, leaf_page * l1, leaf_page * l2, int num_key_1, int num_key_2);
+void flush_resultpage(FILE * fp, result_page * rp);
 
 #endif /* __BPT_H__*/

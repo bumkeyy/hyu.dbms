@@ -2,11 +2,11 @@
 // MAIN
 #include "bpt.h"
 
-#define NUM_COMMAND	100000
+#define NUM_COMMAND	30
 
 int main() {
 
-	int i;
+	int i, j;
 	int num_buf = 10;
 	int table_id1;
 	int table_id2, table_id3;
@@ -30,7 +30,16 @@ int main() {
 	}
 	
 	// Insert
-	for (i = 0; i < NUM_COMMAND; i++) {
+	for (j = 0; j < NUM_COMMAND/2; j++) {
+		i = 2*j;
+		if (insert(table_id1, i, string_set[i%3])){
+			printf("insert(%d) error!\n", i);
+		}
+		printf("insert(%d, %s)\n", i, string_set[i%3]);
+	}
+	// Insert
+	for (j = 0; j < NUM_COMMAND/2; j++) {
+		i = 2*j + 1;
 		if (insert(table_id1, i, string_set[i%3])){
 			printf("insert(%d) error!\n", i);
 		}
@@ -57,7 +66,16 @@ int main() {
 		printf("open_db() error!!\n");
 		return 0;
 	}
-	
+
+	// Insert
+	for (j = 0; j < NUM_COMMAND/2; j++) {
+		i = 2*j;
+		if (insert(table_id1, i, string_set[i%3])){
+			printf("insert(%d) error!\n", i);
+		}
+		printf("insert(%d, %s)\n", i, string_set[i%3]);
+	}
+/*
 	// insert
 	
 	for (i = 0; i < NUM_COMMAND; i++) {
@@ -75,7 +93,7 @@ int main() {
 		}
 		strcpy(string, find(table_id2, i));
 		printf("find(%d) : %s \n", i, string);
-	}
+	}*/
 	if (close_table(table_id2) != 0) {
 		printf("close_table() error!!!\n");
 		return 0;
@@ -91,6 +109,8 @@ int main() {
 		printf("open_db() error!!\n");
 		return 0;
 	}
+	
+
 /*
 	// delete
 	for (i = 0; i < NUM_COMMAND; i++) {

@@ -81,7 +81,6 @@ char * find(int table_id, int64_t key) {
 	else {
 		return (char *) leaf->records[i].value;
 	}
-
 }
 
 // INSERT <KEY> <VALUE>
@@ -92,7 +91,7 @@ char * find(int table_id, int64_t key) {
  */
 int insert_into_leaf(Buf * b, int64_t key, char * value) {
 
-//	printf("insert_into_leaf : %ld \n", key);
+	//printf("insert_into_leaf : %ld \n", key);
 
 	int i, insertion_point;
 	leaf_page * leaf = (leaf_page *) b->page;
@@ -123,7 +122,7 @@ int insert_into_leaf(Buf * b, int64_t key, char * value) {
  */
 int insert_into_leaf_after_splitting(int table_id, Buf * b, int64_t key, char * value) {
 
-//	printf("insert_into_leaf_after_splitting : %ld \n", key);
+	//printf("insert_into_leaf_after_splitting : %ld \n", key);
 	
 	Buf * new_b, * hb;
 	int insertion_index, split, new_key, i, j;
@@ -191,7 +190,7 @@ int insert_into_leaf_after_splitting(int table_id, Buf * b, int64_t key, char * 
 int insert_into_internal_after_splitting(int table_id, Buf * b, int left_index, 
 		int64_t key, Buf * right_b) {
 	
-//	printf("insert_into_internal_after_splitting : %ld \n", key);
+	//printf("insert_into_internal_after_splitting : %ld \n", key);
 
 	int i, j, split, k_prime;
 	Buf * new_b, * child_b, * hb;
@@ -223,16 +222,16 @@ int insert_into_internal_after_splitting(int table_id, Buf * b, int left_index,
 	new_page->num_keys = 0;
 	old_page->num_keys = 0;
 
-	for (i = 0; i < split - 1; i++) {
+	for (i = 0; i < split; i++) {
 		old_page->records[i].page_offset = temp_pageoffset[i];
 		old_page->records[i].key = temp_keys[i];
 		old_page->num_keys++;
 	}
 
-	new_page->one_more_page = temp_pageoffset[split - 1];
-	k_prime = temp_keys[split - 1];
+	new_page->one_more_page = temp_pageoffset[split];
+	k_prime = temp_keys[split];
 
-	for (i = split, j = 0; i < INTERNAL_ORDER; i++, j++) {
+	for (++i, j = 0; i < INTERNAL_ORDER; i++, j++) {
 		new_page->records[j].page_offset = temp_pageoffset[i];
 		new_page->records[j].key = temp_keys[i];
 		new_page->num_keys++;
@@ -287,7 +286,7 @@ int get_left_index(Buf * b, Buf * left_b) {
  */
 int insert_into_internal(Buf * b, int left_index, int64_t key, Buf * right_b) {
 
-//	printf("insert_into_internal : %ld \n", key);
+	//printf("insert_into_internal : %ld \n", key);
 	int i;
 	internal_page * parent, * right;
 	parent = (internal_page *)b->page;
@@ -360,7 +359,7 @@ int insert_into_parent(int table_id, Buf * left_b, int64_t key, Buf * right_b) {
  */
 int insert_into_new_root(int table_id, Buf * left_b, int64_t key, Buf * right_b) {
 
-//	printf("insert_into_new_root : %ld \n", key);
+	//printf("insert_into_new_root : %ld \n", key);
 	Buf * root_b, * hb;
 	internal_page * root, * left, * right;
 	header_page * hp;
