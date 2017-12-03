@@ -368,10 +368,12 @@ int close_table(int table_id) {
 
 		}
 	}
+	close(table_id + 2);
 	return 0;
 }
 
-int shutdouwn_db(int table_id) {
+int shutdown_db() {
+	int i;
 	LRU * cur;
 	cur = LRU_list->head->next;
 	while (cur != LRU_list->tail) {
@@ -393,6 +395,9 @@ int shutdouwn_db(int table_id) {
 		LRU_list->num_lru--;
 
 		cur = cur->next;
+	}
+	for (i = 1; i < 11; i++) {
+		close(i + 2);
 	}
 	if (LRU_list->num_lru == 0) {
 		return 0;
