@@ -24,7 +24,6 @@ Buf * get_first_leafpage(int table_id) {
 		b = get_buf(table_id, c->one_more_page);
 		c = (internal_page *) b->page;
 	}
-
 	release_pincount(hb);
 	return b;
 }

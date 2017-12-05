@@ -7,13 +7,13 @@
 int main() {
 
 	int i, j;
-	int num_buf = 10;
+	int num_buf = 16;
 	int table_id1;
 	int table_id2, table_id3;
 	char string[120];
-	char* file1 = "text1";
-	char* file2 = "text2";
-	char* result = "result";
+	char* file1 = "table1.db";
+	char* file2 = "table2.db";
+	char* result = "my_result.txt";
 	char* string_set[3] = {
 	"val1",
 	"val2",
@@ -24,6 +24,7 @@ int main() {
 		return 0;
 	}
 
+	/*
 	if((table_id1 = open_table(file1)) <= 0) {
 		printf("open_db() error!!\n");
 		return 0;
@@ -74,7 +75,7 @@ int main() {
 			printf("insert(%d) error!\n", i);
 		}
 		printf("insert(%d, %s)\n", i, string_set[i%3]);
-	}
+	}*/
 /*
 	// insert
 	
@@ -93,11 +94,11 @@ int main() {
 		}
 		strcpy(string, find(table_id2, i));
 		printf("find(%d) : %s \n", i, string);
-	}*/
+	}
 	if (close_table(table_id2) != 0) {
 		printf("close_table() error!!!\n");
 		return 0;
-	}
+	}*/
 
 	// open
 	if((table_id1 = open_table(file1)) <= 0) {

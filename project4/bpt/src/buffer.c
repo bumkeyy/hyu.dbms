@@ -393,10 +393,8 @@ int close_table(int table_id) {
 			vb->pin_count = 0;
 
 			LRU_list->num_lru--;
-
-			cur = cur->next;
-
 		}
+		cur = cur->next;
 	}
 	close(table_id + 2);
 	return 0;
