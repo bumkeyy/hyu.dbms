@@ -125,6 +125,7 @@ int main() {
 	if (join_table(table_id1, table_id2, result) != 0) {
 		printf("join error!!\n");
 	}
+	shutdown_db();
 	return 0;
 }
 	

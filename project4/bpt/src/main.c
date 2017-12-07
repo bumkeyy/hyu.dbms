@@ -9,7 +9,7 @@ int main(void) {
 	char *tok;
 	char * ret;
 
-	init_db(4000);
+	init_db(200);
 	
 	// no use buffer stdin, stdout
 	setvbuf(stdin, NULL, _IONBF, 0);
