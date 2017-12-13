@@ -612,7 +612,7 @@ int coalesce_pages (int table_id, Buf * b, Buf * nb, int neighbor_index, int64_t
 
 		ci->parent_page = 0;
 		hp->num_pages--;
-		b->page_offset = 0;
+		b->page_offset = PAGE_NONE;
 
 	}
 
@@ -632,7 +632,7 @@ int coalesce_pages (int table_id, Buf * b, Buf * nb, int neighbor_index, int64_t
 
 		cl->parent_page = 0;
 		hp->num_pages--;
-		b->page_offset = 0;
+		b->page_offset = PAGE_NONE;
 	}
 	mark_dirty(hb);
 	mark_dirty(b);
