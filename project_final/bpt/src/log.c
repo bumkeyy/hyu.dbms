@@ -88,10 +88,97 @@ void flush_log(int num) {
 // Initialize log buffer and
 // check recovery.
 void init_log() {
-	create_log_buf();
+	char * pathname = "my_log.txt"
 
+	create_log_buf();
+	
+	// If log file exists
+	if (access(pathname, 0) == 0) {
+		if ((log_fd = open(pathname, O_RDWR | O_SYNC, 0644)) == -1) {
+			// fail to access
+			printf("fail to access log file\n");
+			return;
+		} else {
+			recovery_from_file();
+		}
+	 } else {
+		 // If log file doesn't exist, make file.
+		 if (log_fd = open(pathname, O_CREAT | O_RDWR | O_SYNC, 0644)) == -1) {
+			// fail to make file.
+			printf("faile to make log file\n");
+			return;
+		 }
+	 }
 }
 
+// Recovery from log file.
+void recovery_from_file() {
+	internal_page * page;
+	Buf * b;
+	bool is_trx;
+	Log * log;
+	int64_t log_offset;
+
+	flush_lsn = 0;
+	log_offset = 0;
+	is_trx = false;
+	log = (Log *)malloc(sizeof(Log));
+
+	// redo phase	
+	while (pread(log_fd, log, LOG_SIZE, log_offset) > 0) {
+		switch(log->type) {
+			case BEGIN : 
+				is_trx = true;
+				break;
+			case UPDATE : 
+				b = get_buf(log->table_id, (log->page_num * PAGE_SIZE));
+				page = (internal_page *)b->page;
+
+				if (page->page_lsn >= log->lsn)
+					break;
+				else {
+					b->page = log->new_image;
+					mark_dirty(b);
+					release_pincount(b);
+					break;
+				} 
+			case COMMIT : 
+				is_trx = false;
+				break;
+			case ABORT : 
+				break;
+			case ROLLBACK : 
+				is_trx = false;
+				break;
+		}
+		log_offset += LOG_SIZE;
+	} 
+
+	// uncommited trx exists
+	if (is_trx)
+		rollback(log->lsn);
+
+	free(log);
+}
+
+void rollback(int64_t lsn) {
+	Log * log;
+	Buf * b;
+	log = (Log *)malloc(sizeof(Log));
+
+	while (pread(log_fd, log, LOG_SIZE, lsn) > 0) {
+		if (log->type == BEGIN || log->type == ABORT) {
+			create_log(b, ROLLBACK);
+			complete_log(b, ROLLBACK);
+			break;
+		}
+		b = get_buf(log->table_id, (log->page_num) * PAGE_SIZE);
+		b->page = log->old_image;
+		mark_dirty(b);
+		release_pincount(b);
+		lsn = log->prev_lsn;
+	}
+}
 
 
 

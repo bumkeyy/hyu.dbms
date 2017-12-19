@@ -50,7 +50,8 @@ typedef enum LOG_TYPE {
 	BEGIN,
 	UPDATE,
 	COMMIT,
-	ABORT
+	ABORT,
+	ROLLBACK
 } LOG_TYPE;
 
 typedef struct Page {
@@ -248,6 +249,8 @@ int create_log(Buf * b, LOG_TYPE type);
 int complete_log(Buf * b, LOG_TYPE type);
 void flush_log(int num);
 void init_log(void);
+void recovery_from_file(void);
+void rollback(int64_t lsn);
 
 
 
