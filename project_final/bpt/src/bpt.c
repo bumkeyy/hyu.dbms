@@ -1,9 +1,9 @@
 /**
  *    @class Database System
  *    @file  bpt.c
- *    @brief join 
+ *    @brief logging manager 
  *    @author Kibeom Kwon (kgbum2222@gmail.com)
- *    @since 2017-11-23
+ *    @since 2017-12-17
  */       
 
 #include "bpt.h"

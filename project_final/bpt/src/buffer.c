@@ -1,9 +1,9 @@
 /**
  *		@class Database System
  *		@file  buffer.c
- *		@brief join
+ *		@brief Log manager & Recovery
  *		@author Kibeom Kwon (kgbum2222@gmail.com)
- *		@since 2017-11-23
+ *		@since 2017-12-17
  */
 
 #include "bpt.h"
@@ -91,7 +91,6 @@ void init_buf(int i) {
 
 // Initialize LRU_list.
 void init_LRU(void) {
-
 	LRU_list = (LRU_LIST *)malloc(sizeof(LRU_LIST));
 	LRU * dummy_head = (LRU *)malloc(sizeof(LRU));
 	LRU * dummy_tail = (LRU *)malloc(sizeof(LRU));
@@ -383,7 +382,7 @@ int close_table(int table_id) {
 
 			vb = cur->buf;
 
-			if (vb->is_dirty) {
+			if (vb->is_dirty && vb->page_offset != PAGE_NONE) {
 				write_page(vb->table_id, vb->page, PAGE_SIZE, vb->page_offset);
 			}
 
@@ -412,7 +411,7 @@ int shutdown_db() {
 
 		vb = cur->buf;
 
-		if (vb->is_dirty) {
+		if (vb->is_dirty && vb->page_offset != PAGE_NONE) {
 			write_page(vb->table_id, vb->page, PAGE_SIZE, vb->page_offset);
 		}
 
@@ -424,6 +423,14 @@ int shutdown_db() {
 
 		cur = cur->next;
 	}
+
+	for (i = 0; i < num_buf; i++) {
+		free(buf[i].page);
+		free(buf[i].lru);
+	}
+	free(buf);
+	free(LRU_list);
+
 	for (i = 1; i < 11; i++) {
 		close(i);
 	}

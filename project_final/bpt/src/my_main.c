@@ -2,7 +2,7 @@
 // MAIN
 #include "bpt.h"
 
-#define NUM_COMMAND	30
+#define NUM_COMMAND	10000
 
 int main() {
 
@@ -24,7 +24,7 @@ int main() {
 		return 0;
 	}
 
-	/*
+	
 	if((table_id1 = open_table(file1)) <= 0) {
 		printf("open_db() error!!\n");
 		return 0;
@@ -55,13 +55,13 @@ int main() {
 		}
 		strcpy(string, find(table_id1, i));
 		printf("find(%d) : %s \n", i, string);
-	}
+	}/*
 	// close table
 	if (close_table(table_id1) != 0) {
 		printf("close_table() error!!!\n");
 		return 0;
-	}
-
+	}*/
+/*
 	
 	if((table_id2 = open_table(file2)) <= 0) {
 		printf("open_db() error!!\n");
@@ -99,7 +99,7 @@ int main() {
 		printf("close_table() error!!!\n");
 		return 0;
 	}*/
-
+/*
 	// open
 	if((table_id1 = open_table(file1)) <= 0) {
 		printf("open_db() error!!\n");
@@ -111,7 +111,7 @@ int main() {
 		return 0;
 	}
 	
-
+*/
 /*
 	// delete
 	for (i = 0; i < NUM_COMMAND; i++) {
@@ -122,9 +122,10 @@ int main() {
 		printf("delete(%d) \n", i);
 	}	
 */
+	/*
 	if (join_table(table_id1, table_id2, result) != 0) {
 		printf("join error!!\n");
-	}
+	}*/
 	shutdown_db();
 	return 0;
 }

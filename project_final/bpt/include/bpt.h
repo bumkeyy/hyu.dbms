@@ -1,9 +1,9 @@
 /**
  *    @class Database System
  *    @file  bpt.h
- *    @brief join 
+ *    @brief Log manager & Recovery 
  *    @author Kibeom Kwon (kgbum2222@gmail.com)
- *    @since 2017-11-23
+ *    @since 2017-12-17
  */
 
 #ifndef __BPT_H__
@@ -21,8 +21,6 @@
 
 #define LEAF_ORDER 32
 #define INTERNAL_ORDER	249
-//#define LEAF_ORDER 4
-//#define INTERNAL_ORDER 4
 #define PAGE_HEADER 128
 #define HEADERPAGE_OFFSET 0
 #define VALUE_SIZE	120
@@ -31,6 +29,9 @@
 #define OUTPUT_BUFFER	0
 #define OUTPUT_OFFSET	-2
 #define JOIN_RESULT_SIZE	16
+#define LOG_BUFFER_SIZE	100
+#define LOG_SIZE	8232
+#define LOG_INIT_NUM	-1
 
 // TYPES.
 
@@ -44,6 +45,13 @@
  * Internal page and consist of key (8byte) and one more page pointer.
  */
 #pragma pack(push, 1)
+
+typedef enum LOG_TYPE {
+	BEGIN,
+	UPDATE,
+	COMMIT,
+	ABORT
+} LOG_TYPE;
 
 typedef struct Page {
 	char context[PAGE_SIZE];
@@ -67,6 +75,7 @@ struct LRU {
 	struct LRU * next;
 };
 
+// JOIN operation
 
 typedef struct resultvalue{
 		int64_t key1;
@@ -97,6 +106,20 @@ typedef struct internal_record {
 	int64_t page_offset;
 } internal_record;
 
+// Log
+typedef struct log {
+	int64_t lsn;
+	int64_t prev_lsn;
+	int	trx_id;
+	LOG_TYPE type;
+	int table_id;
+	int page_num;
+	int offset;
+	int length;
+	Page old_image;
+	Page new_image;
+} Log;
+
 #pragma pack(pop)
 /* Type representing the pages.
  * There are 4 types of page. 
@@ -115,7 +138,8 @@ typedef struct header_page {
 	int64_t free_page;
 	int64_t root_page;
 	int64_t num_pages;
-	int64_t reserved[509];
+	int64_t page_lsn;
+	int64_t reserved[508];
 } header_page;
 
 typedef struct free_page {
@@ -127,7 +151,9 @@ typedef struct leaf_page {
 	int64_t parent_page;
 	int is_leaf;
 	int num_keys;
-	int64_t reserved[13];
+	int64_t padding;
+	int64_t page_lsn;	// log
+	int64_t reserved[11];
 	int64_t right_sibling;
 	leaf_record records[31];
 } leaf_page;
@@ -136,7 +162,9 @@ typedef struct internal_page {
 	int64_t parent_page;
 	int is_leaf;
 	int num_keys;
-	int64_t reserved[13];
+	int64_t padding;
+	int64_t page_lsn;	// log	
+	int64_t reserved[11];
 	int64_t one_more_page;
 	internal_record records[248];
 } internal_page;
@@ -148,6 +176,14 @@ typedef struct internal_page {
 Buf * buf;
 LRU_LIST * LRU_list;
 int num_buf;
+
+// LOG
+Log * log_buf;
+int64_t flush_lsn;
+int flushed_num;
+int end_num;
+int trx_id;
+int log_fd;
 
 // OPEN AND INIT
 int cut(int length);
@@ -204,5 +240,15 @@ Buf * get_first_leafpage(int table_id);
 Buf * make_outbuffer(void);
 int push_resultpage(FILE * fp, result_page * rp, leaf_page * l1, leaf_page * l2, int num_key_1, int num_key_2, int num_result);
 void flush_resultpage(FILE * fp, result_page * rp, int num_result);
+
+
+//LOG
+void create_log_buf(void);
+int create_log(Buf * b, LOG_TYPE type);
+int complete_log(Buf * b, LOG_TYPE type);
+void flush_log(int num);
+void init_log(void);
+
+
 
 #endif /* __BPT_H__*/
