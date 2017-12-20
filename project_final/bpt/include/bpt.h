@@ -32,6 +32,7 @@
 #define LOG_BUFFER_SIZE	100
 #define LOG_SIZE	8232
 #define LOG_INIT_NUM	-1
+#define LOG_HEADER_SIZE	40
 
 // TYPES.
 
@@ -117,8 +118,8 @@ typedef struct log {
 	int page_num;
 	int offset;
 	int length;
-	Page old_image;
-	Page new_image;
+	Page* old_image;
+	Page* new_image;
 } Log;
 
 #pragma pack(pop)
@@ -180,11 +181,13 @@ int num_buf;
 
 // LOG
 Log * log_buf;
-int64_t flush_lsn;
+int64_t flushed_lsn;
 int flushed_num;
 int end_num;
 int trx_id;
 int log_fd;
+bool trx;
+int table[11];
 
 // OPEN AND INIT
 int cut(int length);
@@ -251,6 +254,9 @@ void flush_log(int num);
 void init_log(void);
 void recovery_from_file(void);
 void rollback(int64_t lsn);
+int begin_transaction(void);
+int commit_transaction(void);
+int abort_transaction(void);
 
 
 

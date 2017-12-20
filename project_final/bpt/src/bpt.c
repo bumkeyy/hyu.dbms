@@ -20,12 +20,12 @@ int cut (int length) {
 
 // Read page from file
 void read_page(int table_id, Page * page, int64_t size, int64_t offset) {
-	pread(table_id + 2, page, size, offset);
+	pread(table[table_id], page, size, offset);
 }
 
 // Write page to file
 void write_page(int table_id, Page * page, int64_t size, int64_t offset) {
-	pwrite(table_id + 2, page, size, offset);
+	pwrite(table[table_id], page, size, offset);
 }
 
 // FIND < KEY >
@@ -95,6 +95,9 @@ int insert_into_leaf(Buf * b, int64_t key, char * value) {
 
 	int i, insertion_point;
 	leaf_page * leaf = (leaf_page *) b->page;
+
+	if (trx)
+		leaf->page_lsn = create_log(b, UPDATE);
 	
 	insertion_point = 0;
 	while (insertion_point < leaf->num_keys && leaf->records[insertion_point].key < key)
@@ -108,6 +111,9 @@ int insert_into_leaf(Buf * b, int64_t key, char * value) {
 	leaf->records[insertion_point].key = key;
 	memcpy(leaf->records[insertion_point].value, value, VALUE_SIZE);
 	leaf->num_keys++;
+
+	if (trx)
+		complete_log(b, UPDATE);
 
 	// Write to disk.
 	mark_dirty(b);
@@ -292,16 +298,23 @@ int insert_into_internal(Buf * b, int left_index, int64_t key, Buf * right_b) {
 	parent = (internal_page *)b->page;
 	right = (internal_page *) right_b->page;
 
+	if (trx)
+		parent->page_lsn = create_log(b, UPDATE);
+
 	for (i = parent->num_keys; i > left_index; i--) {
 		parent->records[i].page_offset = parent->records[i - 1].page_offset;
 		parent->records[i].key = parent->records[i - 1].key;
 	}
 	parent->records[left_index].page_offset = right_b->page_offset;
 	parent->records[left_index].key = key;
-	right->parent_page = b->page_offset;
-	
 	parent->num_keys++;
-
+	if (trx) {
+		complete_log(b, UPDATE);
+		right->page_lsn = create_log(right_b, UPDATE);
+	}
+	right->parent_page = b->page_offset;
+	if (trx)
+		complete_log(right_b, UPDATE);
 	// Write to disk
 	mark_dirty(b);
 	mark_dirty(right_b);
@@ -468,6 +481,8 @@ Buf * remove_entry_from_page(Buf * b, int64_t key) {
 	if (c->is_leaf) {
 		// If page is leaf page.
 		leaf = (leaf_page *)b->page;
+		if (trx)
+			leaf->page_lsn = complete_log(b, UPDATE);
 
 		// Remove the key and shift other keys accordingly.
 		i = 0;
@@ -479,9 +494,13 @@ Buf * remove_entry_from_page(Buf * b, int64_t key) {
 			memcpy(leaf->records[i - 1].value, leaf->records[i].value, VALUE_SIZE);
 		}
 		leaf->num_keys--;
+		if (trx)
+			complete_log(b, UPDATE);
 		mark_dirty(b);
 	} else {
 		// If page is internal page.
+		if (trx)
+			c->page_lsn = create_log(b, UPDATE);
 		i = 0;
 		while (c->records[i].key != key)
 			i++;
@@ -490,6 +509,9 @@ Buf * remove_entry_from_page(Buf * b, int64_t key) {
 			c->records[i - 1].page_offset = c->records[i].page_offset;
 		}
 		c->num_keys--;
+		
+		if (trx)
+			complete_log(b, UPDATE);
 		mark_dirty(b);
 	}
 	return b;

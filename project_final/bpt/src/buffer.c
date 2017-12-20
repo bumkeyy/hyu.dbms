@@ -8,7 +8,6 @@
 
 #include "bpt.h"
 
-
 Buf * read_headerpage(int table_id) {
 	int i = 0;
 	Buf * hb;
@@ -115,6 +114,7 @@ int init_db(int num) {
 		init_buf(i);
 
 	init_LRU();
+	init_log();
 
 	return 0;
 }
@@ -123,8 +123,10 @@ int init_db(int num) {
 /* Make victim page and remove.
  */
 void make_victim() {
+	int i;
 	Buf * vb;
 	LRU * d_lru;
+	internal_page * page;
 
 	while (1) {
 		d_lru = LRU_list->tail->prev;
@@ -145,18 +147,26 @@ void make_victim() {
 		break;
 	}
 
+	page = (internal_page *)vb->page;
+	// WAL
+	if (page->page_lsn > 0) {
+		for (i = flushed_num; i < end_num; i++) 
+		if (log_buf[i].lsn > page->page_lsn)
+			break;
+
+		flush_log(i - 1);
+	}
+
 	if (vb->is_dirty) {
 		write_page(vb->table_id, vb->page, PAGE_SIZE, vb->page_offset);
 	}
-
+		
 	vb->is_dirty = false;
 	vb->in_LRU = false;
 	vb->page_offset = PAGE_NONE;
 
 	LRU_list->num_lru--;
 }
-
-
 
 
 /* Upate LRU.
@@ -324,14 +334,19 @@ int open_table(char* pathname) {
 	header_page * hp;
 	Buf * hb;
 
+	table_id = atoi(&pathname[4]);
+
 	hp = (header_page *)malloc(sizeof(header_page));
+
 	// If file exists
 	if (access(pathname, 0) == 0) {
+		if (table[table_id] != 0)
+			return table_id;
 		if ((fd = open(pathname, O_RDWR | O_SYNC, 0644)) == -1) {
 			// Fail to access
 			return -1;
 		} else {
-			table_id = fd - 2;
+			table[table_id] = fd;
 			return table_id;
 		}
 	} else {
@@ -340,7 +355,7 @@ int open_table(char* pathname) {
 			// Fail to make file.
 			return -1;
 		} else {
-			table_id = fd - 2;
+			table[table_id] = fd;
 			// Success to make file, initialize header page and write into file.
 			hb = init_headerpage(table_id);
 			hp = (header_page *)hb->page;
@@ -395,7 +410,7 @@ int close_table(int table_id) {
 		}
 		cur = cur->next;
 	}
-	close(table_id + 2);
+	close(table[table_id]);
 	return 0;
 }
 
@@ -405,6 +420,10 @@ int shutdown_db() {
 	cur = LRU_list->head->next;
 	while (cur != LRU_list->tail) {
 		Buf * vb;
+		if (!vb->in_LRU) {
+			cur = cur->next;
+			continue;
+		}
 		// Remove in LRU_list.
 		cur->prev->next = cur->next;
 		cur->next->prev = cur->prev;

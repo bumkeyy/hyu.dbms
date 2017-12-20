@@ -14,7 +14,7 @@ TARGET_SRC:=$(SRCDIR)my_main.c
 TARGET_OBJ:=$(SRCDIR)my_main.o
 
 # Include more files if you write another source file.
-SRCS_FOR_LIB:=$(SRCDIR)bpt.c  $(SRCDIR)buffer.c  $(SRCDIR)join.c 
+SRCS_FOR_LIB:=$(SRCDIR)bpt.c  $(SRCDIR)buffer.c  $(SRCDIR)join.c $(SRCDIR)log.c 
 OBJS_FOR_LIB:=$(SRCS_FOR_LIB:.c=.o)
 
 CFLAGS+= -g -fPIC -I $(INC)
@@ -27,14 +27,15 @@ $(TARGET): $(TARGET_OBJ)
 	$(CC) $(CFLAGS) -o $(SRCDIR)bpt.o -c $(SRCDIR)bpt.c
 	$(CC) $(CFLAGS) -o $(SRCDIR)buffer.o -c $(SRCDIR)buffer.c
 	$(CC) $(CFLAGS) -o $(SRCDIR)join.o -c $(SRCDIR)join.c
+	$(CC) $(CFLAGS) -o $(SRCDIR)log.o -c $(SRCDIR)log.c
 	make static_library
 	$(CC) $(CFLAGS) -o $@ $^ -L $(LIBS) -lbpt
 
 clean:
-	rm $(TARGET) $(TARGET_OBJ) $(OBJS_FOR_LIB) $(LIBS)* table* *.txt 
+	rm $(TARGET) $(TARGET_OBJ) $(OBJS_FOR_LIB) $(LIBS)* table* *.txt
 
 library:
 	gcc -shared -Wl,-soname,libbpt.so -o $(LIBS)libbpt.so $(OBJS_FOR_LIB)
 
 static_library:
-	ar cr $(LIBS)libbpt.a $(SRCDIR)bpt.o $(SRCDIR)buffer.o $(SRCDIR)join.o 
+	ar cr $(LIBS)libbpt.a $(SRCDIR)bpt.o $(SRCDIR)buffer.o $(SRCDIR)join.o $(SRCDIR)log.o 
