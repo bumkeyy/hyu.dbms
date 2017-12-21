@@ -83,13 +83,14 @@ int complete_log(Buf * b, LOG_TYPE type) {
 void flush_log(int num) {
 	int i;
 	for (i = flushed_num + 1; i <= num; i++) {
+		printf("flush log!!!\n");
 		write(log_fd, log_buf[i].header, LOG_HEADER_SIZE);
 		write(log_fd, log_buf[i].old_image, PAGE_SIZE);
 		write(log_fd, log_buf[i].new_image, PAGE_SIZE);
 	}
 
 	flushed_num = num;
-	if (num = LOG_BUFFER_SIZE - 1)
+	if (num == LOG_BUFFER_SIZE - 1)
 		flushed_num = LOG_INIT_NUM;
 }
 
@@ -161,7 +162,6 @@ void recovery_from_file() {
 				pread(log_fd, new_page, PAGE_SIZE, log_offset);
 				log_offset += PAGE_SIZE;
 				b = get_buf(log->table_id, (log->page_num * PAGE_SIZE));
-
 				memcpy(b->page, new_page, PAGE_SIZE);
 				mark_dirty(b);
 				release_pincount(b);
@@ -194,24 +194,20 @@ void rollback(int64_t lsn) {
 	old_page = (Page *)malloc(sizeof(Page));
 
 	while (pread(log_fd, log, LOG_HEADER_SIZE, lsn) > 0) {
-		if (log->type == BEGIN) {
+		if (log->type == BEGIN || log->type == COMMIT) {
 			create_log(b, ROLLBACK);
 			complete_log(b, ROLLBACK);
-			lsn = log->prev_lsn;
-			continue;
+			break;
 		}
-		b = get_buf(log->table_id, (log->page_num) * PAGE_SIZE);
-		page = (internal_page *)b->page;
-		if (page->page_lsn > log->lsn) {
-			pread(log_fd, old_page, PAGE_SIZE, lsn + PAGE_SIZE);
+		if (log->type == UPDATE) {
+			b = get_buf(log->table_id, (log->page_num) * PAGE_SIZE);
+			pread(log_fd, old_page, PAGE_SIZE, lsn + LOG_HEADER_SIZE);
 			memcpy(b->page, old_page, PAGE_SIZE);
 			mark_dirty(b);
 			release_pincount(b);
+			lsn = log->prev_lsn;
 		}
-		lsn = log->prev_lsn;
 	}
-	free(log);
-	free(old_page);
 }
 
 int update(int table_id, int64_t key, char * value) {
