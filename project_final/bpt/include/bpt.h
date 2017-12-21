@@ -109,7 +109,8 @@ typedef struct internal_record {
 } internal_record;
 
 // Log
-typedef struct log {
+
+typedef struct log_header {
 	int64_t lsn;
 	int64_t prev_lsn;
 	int	trx_id;
@@ -118,6 +119,12 @@ typedef struct log {
 	int page_num;
 	int offset;
 	int length;
+} log_header;
+
+
+
+typedef struct log {
+	log_header * header;
 	Page* old_image;
 	Page* new_image;
 } Log;
@@ -257,6 +264,7 @@ void rollback(int64_t lsn);
 int begin_transaction(void);
 int commit_transaction(void);
 int abort_transaction(void);
+void close_log_table(void);
 
 
 

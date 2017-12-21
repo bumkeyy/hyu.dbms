@@ -13,6 +13,7 @@ void create_log_buf() {
 	int i;
 	log_buf = (Log *) malloc(sizeof(Log) * LOG_BUFFER_SIZE);
 	for (i = 0; i < LOG_BUFFER_SIZE; i++) {
+		log_buf[i].header = (log_header *)malloc(sizeof(log_header));
 		log_buf[i].old_image = (Page *)malloc(sizeof(Page));
 		log_buf[i].new_image = (Page *)malloc(sizeof(Page));
 	}
@@ -34,26 +35,26 @@ int create_log(Buf * b, LOG_TYPE type) {
 
 	// set lsn and prev_lsn
 	if (end_num == LOG_INIT_NUM) {
-		log->lsn = 0;
-		log->prev_lsn = 0;
+		log->header->lsn = 0;
+		log->header->prev_lsn = 0;
 	} else {
-		log->lsn = log_buf[end_num].lsn + LOG_SIZE;
-		log->prev_lsn = log_buf[end_num].lsn;
+		log->header->lsn = log_buf[end_num].header->lsn + LOG_SIZE;
+		log->header->prev_lsn = log_buf[end_num].header->lsn;
 	}
 
-	log->trx_id = trx_id;
-	log->type = type;
+	log->header->trx_id = trx_id;
+	log->header->type = type;
 
 	if (type == UPDATE) {
-		log->table_id = b->table_id;
-		log->page_num = (b->page_offset) / PAGE_SIZE;
-		log->offset = 0;
-		log->length = PAGE_SIZE;
-		log->old_image = b->page;
+		log->header->table_id = b->table_id;
+		log->header->page_num = (b->page_offset) / PAGE_SIZE;
+		log->header->offset = 0;
+		log->header->length = PAGE_SIZE;
+		memcpy(log->old_image, b->page, PAGE_SIZE);
 	}
 
 	// BEGIN, COMMIT, ABORT are returned right away.
-	return log->lsn;
+	return log->header->lsn;
 }
 
 // Complete log record
@@ -67,8 +68,8 @@ int complete_log(Buf * b, LOG_TYPE type) {
 
 	Log * log = &log_buf[cur];
 
-	if (type == UPDATE) 
-		log->new_image = b->page;
+	if (type == UPDATE)
+		memcpy(log->new_image, b->page, PAGE_SIZE); 
 
 	if (end_num == LOG_BUFFER_SIZE - 1)
 		flush_log(end_num);
@@ -81,10 +82,10 @@ int complete_log(Buf * b, LOG_TYPE type) {
 // from flush_lsn to num.
 void flush_log(int num) {
 	int i;
-	for (i = flushed_num + 1; i < num; i++) {
-		write(log_fd, &log_buf[i], LOG_HEADER_SIZE);
-		write(log_fd, &log_buf[i].old_image, PAGE_SIZE);
-		write(log_fd, &log_buf[i].new_image, PAGE_SIZE);
+	for (i = flushed_num + 1; i <= num; i++) {
+		write(log_fd, log_buf[i].header, LOG_HEADER_SIZE);
+		write(log_fd, log_buf[i].old_image, PAGE_SIZE);
+		write(log_fd, log_buf[i].new_image, PAGE_SIZE);
 	}
 
 	flushed_num = num;
@@ -134,19 +135,21 @@ void recovery_from_file() {
 		"DATA10"
 	};
 
-	internal_page * page;
+	leaf_page * page;
 	Buf * b;
 	bool is_trx;
-	Log * log;
+	log_header *log;
 	int64_t log_offset;
+	Page * old_page, * new_page;
 
 	flushed_lsn = 0;
 	log_offset = 0;
 	is_trx = false;
-	log = (Log *)malloc(sizeof(Log));
+	log = (log_header *)malloc(sizeof(log_header));
+	new_page = (Page *)malloc(sizeof(Page));
 
 	// redo phase	
-	while (pread(log_fd, log, LOG_SIZE, log_offset) > 0) {
+	while (pread(log_fd, log, LOG_HEADER_SIZE, log_offset) > 0) {
 		switch(log->type) {
 			case BEGIN : 
 				is_trx = true;
@@ -154,21 +157,15 @@ void recovery_from_file() {
 			case UPDATE : 
 				if (table[log->table_id] == 0) 
 					open_table(name_table[log->table_id]);
+				log_offset += (LOG_HEADER_SIZE + PAGE_SIZE);
+				pread(log_fd, new_page, PAGE_SIZE, log_offset);
+				log_offset += PAGE_SIZE;
 				b = get_buf(log->table_id, (log->page_num * PAGE_SIZE));
-				page = (internal_page *)b->page;
-				if (page->page_lsn >= log->lsn) {
-					//close(table[log->table_id]);
-					break;
-				}
-				else {
-					b->page = log->new_image;
-					page = (internal_page *)b->page;
-					page->page_lsn = log->lsn;
-					mark_dirty(b);
-					release_pincount(b);
-					//close(table[log->table_id]);
-					break;
-				} 
+
+				memcpy(b->page, new_page, PAGE_SIZE);
+				mark_dirty(b);
+				release_pincount(b);
+				break;
 			case COMMIT : 
 				is_trx = false;
 				break;
@@ -178,39 +175,43 @@ void recovery_from_file() {
 				is_trx = false;
 				break;
 		}
-		log_offset += LOG_SIZE;
+		if (log->type != UPDATE)
+			log_offset += LOG_SIZE;
 	} 
 
 	// uncommited trx exists
 	if (is_trx)
-		//rollback(log->lsn);
-
-	free(log);
+		rollback(log->lsn);
 }
 
 void rollback(int64_t lsn) {
-	Log * undo_log;
+	log_header * log;
 	Buf * b;
 	internal_page * page;
-	undo_log = (Log *)malloc(sizeof(Log));
+	Page * old_page;
 
-	while (pread(log_fd, undo_log, LOG_SIZE, lsn) > 0) {
-		if (undo_log->type == BEGIN) {
+	log = (log_header *)malloc(sizeof(log_header));
+	old_page = (Page *)malloc(sizeof(Page));
+
+	while (pread(log_fd, log, LOG_HEADER_SIZE, lsn) > 0) {
+		if (log->type == BEGIN) {
 			create_log(b, ROLLBACK);
 			complete_log(b, ROLLBACK);
-			break;
+			lsn = log->prev_lsn;
+			continue;
 		}
-		b = get_buf(undo_log->table_id, (undo_log->page_num) * PAGE_SIZE);
+		b = get_buf(log->table_id, (log->page_num) * PAGE_SIZE);
 		page = (internal_page *)b->page;
-		if (page->page_lsn > undo_log->lsn) {
-			b->page = undo_log->old_image;
-			page = (internal_page *)b->page;
+		if (page->page_lsn > log->lsn) {
+			pread(log_fd, old_page, PAGE_SIZE, lsn + PAGE_SIZE);
+			memcpy(b->page, old_page, PAGE_SIZE);
 			mark_dirty(b);
 			release_pincount(b);
 		}
-		lsn = undo_log->prev_lsn;
+		lsn = log->prev_lsn;
 	}
-	free(undo_log);		
+	free(log);
+	free(old_page);
 }
 
 int update(int table_id, int64_t key, char * value) {
@@ -228,7 +229,6 @@ int update(int table_id, int64_t key, char * value) {
 
 	if (trx)
 		leaf->page_lsn = create_log(b, UPDATE);
-	printf("Update page_lsn : %lld \n", leaf->page_lsn);
 
 	for (i = 0; i < leaf->num_keys; i++) {
 		if (leaf->records[i].key == key)
@@ -269,12 +269,20 @@ int commit_transaction() {
 int abort_transaction() {
 	Buf * b;
 	if (trx) {
-		rollback(log_buf[end_num].lsn);
+		rollback(log_buf[end_num].header->lsn);
 		create_log(b, ROLLBACK);
 		complete_log(b, ROLLBACK);
 	}
 	trx = false;
 	return 0;
+}
+
+void close_log_table() {
+	int i;
+	for (i = 0; i < 11; i++) {
+		if (table[i] != 0)
+			close_table(i);
+	}
 }
 
 

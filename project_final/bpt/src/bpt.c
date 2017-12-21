@@ -43,6 +43,7 @@ Buf * find_leaf(int table_id, int64_t key) {
 	internal_page * c = (internal_page *) b->page;
 
 	while (!c->is_leaf) {
+		//printf("%lld\n", b->page_offset);
 		release_pincount(b);
 		i = 0;
 		while (i < c->num_keys) {

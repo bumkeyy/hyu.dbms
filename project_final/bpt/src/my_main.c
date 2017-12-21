@@ -11,7 +11,7 @@ int main() {
 	int table_id1;
 	int table_id2, table_id3;
 	char string[120];
-	char* file1 = "DATA1";
+	char* file1 = "DATA3";
 	char* file2 = "table2.db";
 	char* result = "my_result.txt";
 	Buf * b;
@@ -30,13 +30,13 @@ int main() {
 	if((table_id1 = open_table(file1)) <= 0) {
 		printf("open_db() error!!\n");
 		return 0;
-	}
-/*	
+	}	
+/*
 	b = get_buf(table_id1, 4096);
 	page = (internal_page *)b->page;
 	printf("num_keys : %d\n", page->num_keys);
 */
-	
+/*	
 
 		
 	// Insert
@@ -64,11 +64,13 @@ int main() {
 		strcpy(string, find(table_id1, i));
 		printf("find(%d) : %s \n", i, string);
 	}	
+	close_table(table_id1);
+	open_table(file1);
 
 	begin_transaction();
 	update(table_id1, 1, "Hello");
 	update(table_id1, 2, "FUCK");
-	commit_transaction();
+	commit_transaction();*/
 	for (i = 1; i < 3; i++) {
 		if (find(table_id1 ,i) == NULL){
 			printf("find(%d) fail!\n", i);
@@ -76,7 +78,7 @@ int main() {
 		}
 		strcpy(string, find(table_id1, i));
 		printf("find(%d) : %s \n", i, string);
-	}	
+	}/*	
 	begin_transaction();
 	update(table_id1, 3, "Why");
 	
@@ -95,7 +97,7 @@ int main() {
 		}
 		strcpy(string, find(table_id1, i));
 		printf("find(%d) : %s \n", i, string);
-	}/*	
+	}	
 	// delete
 	for (i = 0; i < NUM_COMMAND; i++) {
 		if (delete(table_id1, i)){
@@ -103,8 +105,8 @@ int main() {
 			continue;
 		}
 		printf("delete(%d) \n", i);
-	}*/
-
+	}
+*/
 	shutdown_db();
 	return 0;
 }

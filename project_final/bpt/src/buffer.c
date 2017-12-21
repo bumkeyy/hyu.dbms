@@ -151,7 +151,7 @@ void make_victim() {
 	// WAL
 	if (page->page_lsn > 0) {
 		for (i = flushed_num; i < end_num; i++) 
-		if (log_buf[i].lsn > page->page_lsn)
+		if (log_buf[i].header->lsn > page->page_lsn)
 			break;
 
 		flush_log(i - 1);
@@ -336,8 +336,6 @@ int open_table(char* pathname) {
 
 	table_id = atoi(&pathname[4]);
 
-	hp = (header_page *)malloc(sizeof(header_page));
-
 	// If file exists
 	if (access(pathname, 0) == 0) {
 		if (table[table_id] != 0)
@@ -411,6 +409,7 @@ int close_table(int table_id) {
 		cur = cur->next;
 	}
 	close(table[table_id]);
+	table[table_id] = 0;
 	return 0;
 }
 
