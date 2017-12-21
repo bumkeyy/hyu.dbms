@@ -449,6 +449,12 @@ int shutdown_db() {
 	}
 	free(buf);
 	free(LRU_list);
+	for (i = 0; i < LOG_BUFFER_SIZE; i++) {
+		free(log_buf[i].header);
+		free(log_buf[i].old_image);
+		free(log_buf[i].new_image);
+	}
+	free(log_buf);
 
 	for (i = 1; i < 11; i++) {
 		close(i);

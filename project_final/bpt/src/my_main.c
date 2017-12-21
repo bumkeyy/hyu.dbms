@@ -35,6 +35,7 @@ int main() {
 	b = get_buf(table_id1, 4096);
 	page = (internal_page *)b->page;
 	printf("num_keys : %d\n", page->num_keys);
+	
 	// Insert
 	for (j = 0; j < NUM_COMMAND/2; j++) {
 		i = 2*j;
@@ -76,12 +77,11 @@ int main() {
 		strcpy(string, find(table_id1, i));
 		printf("find(%d) : %s \n", i, string);
 	}
-	exit(1);
-	
-	/*
-
+/*
 	begin_transaction();
-	update(table_id1, 3, "Why");
+	update(table_id1, 299, "Why");
+	abort_transaction();
+
 	for (i = 1; i < 4; i++) {
 		if (find(table_id1 ,i) == NULL){
 			printf("find(%d) fail!\n", i);
