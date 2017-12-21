@@ -458,6 +458,7 @@ int shutdown_db() {
 
 	for (i = 1; i < 11; i++) {
 		close(i);
+		table[i] = 0;
 	}
 	if (LRU_list->num_lru == 0) {
 		return 0;
