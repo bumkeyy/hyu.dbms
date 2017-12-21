@@ -304,7 +304,6 @@ int create_undo(Buf * b, log_header * redo) {
 	// undo log setting
 	memcpy(log->old_image, new_page, PAGE_SIZE);
 	memcpy(log->new_image, old_page, PAGE_SIZE);
-	//printf("log->new_image : %s\n", ((leaf_page *)log->new_image)->records[299].value);
 
 	// b page change
 	memcpy(b->page, log->new_image, PAGE_SIZE);
