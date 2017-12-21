@@ -183,6 +183,9 @@ void recovery_from_file() {
 	// uncommited trx exists
 	if (is_trx)
 		rollback(log->lsn);
+	free(log);
+		free(new_page);
+
 }
 
 void rollback(int64_t lsn) {
@@ -208,6 +211,8 @@ void rollback(int64_t lsn) {
 			lsn = log->prev_lsn;
 		}
 	}
+	free(log);
+	free(old_page);
 }
 
 int update(int table_id, int64_t key, char * value) {
@@ -312,6 +317,8 @@ int create_undo(Buf * b, log_header * redo) {
 		flush_log(end_num);
 
 	end_num = cur;
+	free(old_page);
+	free(new_page);
 	return 0;
 }
 
