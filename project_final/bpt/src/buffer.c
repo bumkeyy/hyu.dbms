@@ -151,10 +151,11 @@ void make_victim() {
 	// WAL
 	if (page->page_lsn > 0) {
 		for (i = flushed_num; i < end_num; i++) 
-		if (log_buf[i].header->lsn > page->page_lsn)
-			break;
-
-		flush_log(i - 1);
+			if (log_buf[i].header->lsn > page->page_lsn)
+				break;
+		//printf("eviction!!!\n");
+		if (i >= 0)
+			flush_log(i);
 	}
 
 	if (vb->is_dirty) {

@@ -81,9 +81,10 @@ int complete_log(Buf * b, LOG_TYPE type) {
 // Flush log buffer.
 // from flush_lsn to num.
 void flush_log(int num) {
+	//printf("flush_log %d \n", num);
 	int i;
 	for (i = flushed_num + 1; i <= num; i++) {
-		printf("flush log!!!\n");
+		//printf("%d!!!\n", i);
 		write(log_fd, log_buf[i].header, LOG_HEADER_SIZE);
 		write(log_fd, log_buf[i].old_image, PAGE_SIZE);
 		write(log_fd, log_buf[i].new_image, PAGE_SIZE);
