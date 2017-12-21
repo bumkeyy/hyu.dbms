@@ -52,15 +52,7 @@ int main() {
 		}
 		printf("insert(%d, %s)\n", i, string_set[i%3]);
 	}
-	// find
-	for (i = 0; i < NUM_COMMAND; i++) {
-		if (find(table_id1 ,i) == NULL){
-			printf("find(%d) fail!\n", i);
-			continue;
-		}
-		strcpy(string, find(table_id1, i));
-		printf("find(%d) : %s \n", i, string);
-	}	
+	
 	close_table(table_id1);
 	open_table(file1);
 
@@ -68,8 +60,8 @@ int main() {
 	for (i = 0; i < 300; i++) {
 	update(table_id1, i, "fuck");
 	}
-	commit_transaction();*/
-	for (i = 0; i < 300; i++) {
+	commit_transaction();
+	for (i = 290; i < 300; i++) {
 		if (find(table_id1 ,i) == NULL){
 			printf("find(%d) fail!\n", i);
 			continue;
@@ -77,31 +69,27 @@ int main() {
 		strcpy(string, find(table_id1, i));
 		printf("find(%d) : %s \n", i, string);
 	}
-/*
+
 	begin_transaction();
 	update(table_id1, 299, "Why");
 	abort_transaction();
-
-	for (i = 1; i < 4; i++) {
+	begin_transaction();
+	update(table_id1, 298, "GOOD");
+	commit_transaction();
+	begin_transaction();
+	update(table_id1, 297, "NONONO");
+	flush_log(end_num);*/
+	for (i = 290; i < 300; i++) {
 		if (find(table_id1 ,i) == NULL){
 			printf("find(%d) fail!\n", i);
 			continue;
 		}
 		strcpy(string, find(table_id1, i));
 		printf("find(%d) : %s \n", i, string);
-	}	
-	flush_log(end_num);
+	}	/*
 	exit(1);
 
-	if (find(table_id1 ,3) == NULL){
-			printf("find(%d) fail!\n", 3);
-		}
-		strcpy(string, find(table_id1, 3));
-		printf("find(%d) : %s \n", 3, string);
-
-	exit(1);
-
-	for (i = 1; i < 4; i++) {
+	for (i = 0; i < NUM_COMMAND; i++) {
 		if (find(table_id1 ,i) == NULL){
 			printf("find(%d) fail!\n", i);
 			continue;

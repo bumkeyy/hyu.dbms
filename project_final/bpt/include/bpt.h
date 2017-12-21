@@ -264,8 +264,7 @@ void rollback(int64_t lsn);
 int begin_transaction(void);
 int commit_transaction(void);
 int abort_transaction(void);
-void close_log_table(void);
-
+int create_undo(Buf * b, log_header * redo);
 
 
 #endif /* __BPT_H__*/

@@ -202,8 +202,7 @@ void rollback(int64_t lsn) {
 		}
 		if (log->type == UPDATE) {
 			b = get_buf(log->table_id, (log->page_num) * PAGE_SIZE);
-			pread(log_fd, old_page, PAGE_SIZE, lsn + LOG_HEADER_SIZE);
-			memcpy(b->page, old_page, PAGE_SIZE);
+			create_undo(b, log);
 			mark_dirty(b);
 			release_pincount(b);
 			lsn = log->prev_lsn;
@@ -266,6 +265,7 @@ int commit_transaction() {
 int abort_transaction() {
 	Buf * b;
 	if (trx) {
+		flush_log(end_num);
 		rollback(log_buf[end_num].header->lsn);
 		create_log(b, ROLLBACK);
 		complete_log(b, ROLLBACK);
@@ -274,13 +274,49 @@ int abort_transaction() {
 	return 0;
 }
 
-void close_log_table() {
-	int i;
-	for (i = 0; i < 11; i++) {
-		if (table[i] != 0)
-			close_table(i);
-	}
+int create_undo(Buf * b, log_header * redo) {
+	int cur;
+	Log * log;
+	Page * old_page, * new_page;
+
+	old_page = (Page *)malloc(sizeof(Page));
+	new_page = (Page *)malloc(sizeof(Page));
+
+	// current index
+	cur = end_num + 1;
+	if (cur == LOG_BUFFER_SIZE)
+		cur = 0;
+	log = &log_buf[cur];
+
+	log->header->lsn = redo->lsn + LOG_SIZE;
+	log->header->prev_lsn = redo->lsn;
+
+	log->header->trx_id = trx_id;
+	log->header->type = UPDATE;
+	log->header->table_id = redo->table_id;
+	log->header->page_num = redo->page_num;
+	log->header->offset = 0;
+	log->header->length = PAGE_SIZE;
+
+	pread(log_fd, old_page, PAGE_SIZE, redo->lsn + LOG_HEADER_SIZE);
+	pread(log_fd, new_page, PAGE_SIZE, redo->lsn + LOG_HEADER_SIZE + PAGE_SIZE);
+
+	// undo log setting
+	memcpy(log->old_image, new_page, PAGE_SIZE);
+	memcpy(log->new_image, old_page, PAGE_SIZE);
+	//printf("log->new_image : %s\n", ((leaf_page *)log->new_image)->records[299].value);
+
+	// b page change
+	memcpy(b->page, log->new_image, PAGE_SIZE);
+	
+	if (end_num == LOG_BUFFER_SIZE - 1)
+		flush_log(end_num);
+
+	end_num = cur;
+	return 0;
 }
+
+
 
 
 
